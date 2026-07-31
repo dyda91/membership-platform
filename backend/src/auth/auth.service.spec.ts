@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { Role } from '@prisma/client';
+import { AccountStatus, Role } from '@prisma/client';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
 import { PasswordService } from './password.service';
@@ -16,9 +16,21 @@ describe('AuthService', () => {
     id: 'uuid-1',
     email: 'user@test.com',
     passwordHash: '$2b$10$hashed-value',
-    role: Role.USER,
+    name: null,
+    status: AccountStatus.ACTIVE,
+    roles: [{ userId: 'uuid-1', role: Role.SUBSCRIBER }],
     createdAt: new Date(),
     updatedAt: new Date(),
+  };
+
+  const safeUser = {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    status: user.status,
+    roles: [Role.SUBSCRIBER],
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
   };
 
   beforeEach(async () => {
@@ -50,7 +62,7 @@ describe('AuthService', () => {
     it('should create a user with a hashed password', async () => {
       usersService.findByEmail.mockResolvedValue(null);
       passwordService.hash.mockResolvedValue('$2b$10$hashed-value');
-      usersService.create.mockResolvedValue(user);
+      usersService.create.mockResolvedValue(safeUser);
 
       const result = await service.register({
         email: 'user@test.com',
@@ -61,7 +73,6 @@ describe('AuthService', () => {
       expect(usersService.create).toHaveBeenCalledWith({
         email: 'user@test.com',
         passwordHash: '$2b$10$hashed-value',
-        role: Role.USER,
       });
       expect(result.email).toBe('user@test.com');
     });
@@ -69,7 +80,7 @@ describe('AuthService', () => {
     it('should not include the password hash in the response', async () => {
       usersService.findByEmail.mockResolvedValue(null);
       passwordService.hash.mockResolvedValue('$2b$10$hashed-value');
-      usersService.create.mockResolvedValue(user);
+      usersService.create.mockResolvedValue(safeUser);
 
       const result = await service.register({
         email: 'user@test.com',
@@ -87,36 +98,20 @@ describe('AuthService', () => {
       ).rejects.toThrow(ConflictException);
     });
 
-    it('should default role to USER when not provided', async () => {
+    it('should let the users service assign the default role', async () => {
       usersService.findByEmail.mockResolvedValue(null);
       passwordService.hash.mockResolvedValue('$2b$10$hashed-value');
-      usersService.create.mockResolvedValue(user);
+      usersService.create.mockResolvedValue(safeUser);
 
       await service.register({
         email: 'user@test.com',
         password: 'secret123',
       });
 
-      expect(usersService.create).toHaveBeenCalledWith(
-        expect.objectContaining({ role: Role.USER }),
-      );
-    });
-
-    it('should preserve the provided role', async () => {
-      usersService.findByEmail.mockResolvedValue(null);
-      passwordService.hash.mockResolvedValue('$2b$10$hashed-value');
-      usersService.create.mockResolvedValue({ ...user, role: Role.ARTIST });
-
-      const result = await service.register({
+      expect(usersService.create).toHaveBeenCalledWith({
         email: 'user@test.com',
-        password: 'secret123',
-        role: Role.ARTIST,
+        passwordHash: '$2b$10$hashed-value',
       });
-
-      expect(usersService.create).toHaveBeenCalledWith(
-        expect.objectContaining({ role: Role.ARTIST }),
-      );
-      expect(result.role).toBe(Role.ARTIST);
     });
   });
 
@@ -138,7 +133,7 @@ describe('AuthService', () => {
       expect(jwtService.signAsync).toHaveBeenCalledWith({
         sub: user.id,
         email: user.email,
-        role: user.role,
+        roles: [Role.SUBSCRIBER],
       });
       expect(result.accessToken).toBe('jwt-token');
       expect(result.user.email).toBe('user@test.com');
@@ -161,6 +156,18 @@ describe('AuthService', () => {
         service.login({ email: 'missing@test.com', password: 'secret123' }),
       ).rejects.toThrow(UnauthorizedException);
     });
+
+    it('should reject login when the account is disabled', async () => {
+      usersService.findByEmail.mockResolvedValue({
+        ...user,
+        status: AccountStatus.DISABLED,
+      });
+
+      await expect(
+        service.login({ email: 'user@test.com', password: 'secret123' }),
+      ).rejects.toThrow(UnauthorizedException);
+      expect(passwordService.compare).not.toHaveBeenCalled();
+    });
   });
 
   describe('validateUser', () => {
@@ -170,13 +177,7 @@ describe('AuthService', () => {
 
       const result = await service.validateUser('user@test.com', 'secret123');
 
-      expect(result).toEqual({
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-      });
+      expect(result).toEqual(safeUser);
     });
 
     it('should return null when password is invalid', async () => {
@@ -195,6 +196,17 @@ describe('AuthService', () => {
         'missing@test.com',
         'secret123',
       );
+
+      expect(result).toBeNull();
+    });
+
+    it('should return null when the account is disabled', async () => {
+      usersService.findByEmail.mockResolvedValue({
+        ...user,
+        status: AccountStatus.DISABLED,
+      });
+
+      const result = await service.validateUser('user@test.com', 'secret123');
 
       expect(result).toBeNull();
     });

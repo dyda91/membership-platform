@@ -1,11 +1,12 @@
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Param,
+  Controller,
   Delete,
+  Get,
+  Param,
+  ParseEnumPipe,
   Patch,
+  Post,
   UseGuards,
 } from '@nestjs/common';
 import { Role } from '@prisma/client';
@@ -15,15 +16,16 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { AssignRoleDto } from './dto/assign-role.dto';
+import { UpdateStatusDto } from './dto/update-status.dto';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(Role.ADMIN)
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
-  @UseGuards(RolesGuard)
-  @Roles(Role.ADMIN)
   create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
   }
@@ -38,16 +40,35 @@ export class UsersController {
     return this.usersService.findOne(id);
   }
 
+  @Get(':id/profile')
+  getProfile(@Param('id') id: string) {
+    return this.usersService.getProfile(id);
+  }
+
   @Patch(':id')
-  @UseGuards(RolesGuard)
-  @Roles(Role.ADMIN)
   update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
     return this.usersService.update(id, updateUserDto);
   }
 
+  @Post(':id/roles')
+  assignRole(@Param('id') id: string, @Body() assignRoleDto: AssignRoleDto) {
+    return this.usersService.assignRole(id, assignRoleDto.role);
+  }
+
+  @Delete(':id/roles/:role')
+  removeRole(
+    @Param('id') id: string,
+    @Param('role', new ParseEnumPipe(Role)) role: Role,
+  ) {
+    return this.usersService.removeRole(id, role);
+  }
+
+  @Patch(':id/status')
+  setStatus(@Param('id') id: string, @Body() updateStatusDto: UpdateStatusDto) {
+    return this.usersService.setStatus(id, updateStatusDto.status);
+  }
+
   @Delete(':id')
-  @UseGuards(RolesGuard)
-  @Roles(Role.ADMIN)
   remove(@Param('id') id: string) {
     return this.usersService.remove(id);
   }

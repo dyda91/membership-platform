@@ -1,11 +1,11 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { AuthenticatedUser } from './jwt.strategy';
 
 export const CurrentUser = createParamDecorator(
   (_data: unknown, ctx: ExecutionContext) => {
     const request = ctx
       .switchToHttp()
-      .getRequest<{ user: { id: string; email: string; role: Role } }>();
+      .getRequest<{ user: AuthenticatedUser }>();
     return request.user;
   },
 );

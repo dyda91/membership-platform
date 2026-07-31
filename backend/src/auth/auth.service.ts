@@ -4,13 +4,11 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { Role, User } from '@prisma/client';
+import { AccountStatus, Role, User } from '@prisma/client';
 import { UsersService } from '../users/users.service';
 import { PasswordService } from './password.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
-
-type SafeUser = Pick<User, 'id' | 'email' | 'role' | 'createdAt' | 'updatedAt'>;
 
 @Injectable()
 export class AuthService {
@@ -29,13 +27,10 @@ export class AuthService {
 
     const passwordHash = await this.passwordService.hash(dto.password);
 
-    const user = await this.usersService.create({
+    return this.usersService.create({
       email: dto.email,
       passwordHash,
-      role: dto.role ?? Role.USER,
     });
-
-    return this.toSafeUser(user);
   }
 
   async login(dto: LoginDto) {
@@ -45,7 +40,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const payload = { sub: user.id, email: user.email, role: user.role };
+    const payload = { sub: user.id, email: user.email, roles: user.roles };
     const accessToken = await this.jwtService.signAsync(payload);
 
     return {
@@ -57,7 +52,7 @@ export class AuthService {
   async validateUser(email: string, password: string) {
     const user = await this.usersService.findByEmail(email);
 
-    if (!user) {
+    if (!user || user.status !== AccountStatus.ACTIVE) {
       return null;
     }
 
@@ -73,11 +68,13 @@ export class AuthService {
     return this.toSafeUser(user);
   }
 
-  private toSafeUser(user: SafeUser) {
+  private toSafeUser(user: User & { roles: { role: Role }[] }) {
     return {
       id: user.id,
       email: user.email,
-      role: user.role,
+      name: user.name,
+      status: user.status,
+      roles: user.roles.map((item) => item.role),
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };

@@ -4,7 +4,7 @@ import { Reflector } from '@nestjs/core';
 import { Role } from '@prisma/client';
 import { RolesGuard } from './roles.guard';
 
-const buildContext = (user?: { role: Role }): ExecutionContext =>
+const buildContext = (user?: { roles: Role[] }): ExecutionContext =>
   ({
     switchToHttp: () => ({
       getRequest: () => ({ user }),
@@ -29,25 +29,41 @@ describe('RolesGuard', () => {
   it('should allow access when no roles are required', () => {
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(undefined);
 
-    expect(guard.canActivate(buildContext({ role: Role.USER }))).toBe(true);
+    expect(guard.canActivate(buildContext({ roles: [Role.SUBSCRIBER] }))).toBe(
+      true,
+    );
   });
 
   it('should allow ADMIN access to an ADMIN-only route', () => {
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([Role.ADMIN]);
 
-    expect(guard.canActivate(buildContext({ role: Role.ADMIN }))).toBe(true);
+    expect(guard.canActivate(buildContext({ roles: [Role.ADMIN] }))).toBe(true);
   });
 
-  it('should deny USER access to an ADMIN-only route', () => {
+  it('should deny SUBSCRIBER access to an ADMIN-only route', () => {
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([Role.ADMIN]);
 
-    expect(guard.canActivate(buildContext({ role: Role.USER }))).toBe(false);
+    expect(guard.canActivate(buildContext({ roles: [Role.SUBSCRIBER] }))).toBe(
+      false,
+    );
   });
 
   it('should deny ARTIST access to an ADMIN-only route', () => {
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([Role.ADMIN]);
 
-    expect(guard.canActivate(buildContext({ role: Role.ARTIST }))).toBe(false);
+    expect(guard.canActivate(buildContext({ roles: [Role.ARTIST] }))).toBe(
+      false,
+    );
+  });
+
+  it('should allow access when the user holds one of the required roles', () => {
+    jest
+      .spyOn(reflector, 'getAllAndOverride')
+      .mockReturnValue([Role.ADMIN, Role.ARTIST]);
+
+    expect(guard.canActivate(buildContext({ roles: [Role.ARTIST] }))).toBe(
+      true,
+    );
   });
 
   it('should deny access when there is no authenticated user', () => {
