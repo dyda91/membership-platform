@@ -46,6 +46,7 @@ describe('UsersService', () => {
       findFirst: jest.Mock;
       update: jest.Mock;
       delete: jest.Mock;
+      count: jest.Mock;
     };
     userRole: {
       upsert: jest.Mock;
@@ -73,6 +74,7 @@ describe('UsersService', () => {
         findFirst: jest.fn(),
         update: jest.fn(),
         delete: jest.fn(),
+        count: jest.fn(),
       },
       userRole: {
         upsert: jest.fn(),
@@ -90,9 +92,17 @@ describe('UsersService', () => {
       },
       $transaction: jest.fn(),
     };
-    prisma.$transaction.mockImplementation(
-      (callback: (tx: typeof prisma) => unknown) => callback(prisma),
-    );
+    prisma.$transaction.mockImplementation(((operation: unknown) => {
+      if (typeof operation === 'function') {
+        return (operation as (tx: typeof prisma) => unknown)(prisma);
+      }
+
+      if (Array.isArray(operation)) {
+        return Promise.all(operation as Promise<unknown>[]);
+      }
+
+      return undefined;
+    }) as never);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [UsersService, { provide: PrismaService, useValue: prisma }],
@@ -126,17 +136,84 @@ describe('UsersService', () => {
   });
 
   describe('findAll', () => {
-    it('should exclude hidden SUPER_ADMIN accounts from the list query', async () => {
+    it('should exclude hidden SUPER_ADMIN accounts and return pagination metadata', async () => {
       prisma.user.findMany.mockResolvedValue([makeUser()]);
+      prisma.user.count.mockResolvedValue(1);
 
       const result = await service.findAll();
 
       expect(prisma.user.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { roles: { none: { role: Role.SUPER_ADMIN } } },
+          skip: 0,
+          take: 20,
         }),
       );
-      expect(result).toHaveLength(1);
+      expect(result.page).toBe(1);
+      expect(result.limit).toBe(20);
+      expect(result.total).toBe(1);
+      expect(result.totalPages).toBe(1);
+      expect(result.data).toHaveLength(1);
+    });
+
+    it('should search by name or email case-insensitively', async () => {
+      prisma.user.findMany.mockResolvedValue([]);
+      prisma.user.count.mockResolvedValue(0);
+
+      await service.findAll({ search: '  maria  ' });
+
+      expect(prisma.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            roles: { none: { role: Role.SUPER_ADMIN } },
+            OR: [
+              { name: { contains: 'maria', mode: 'insensitive' } },
+              { email: { contains: 'maria', mode: 'insensitive' } },
+            ],
+          },
+        }),
+      );
+    });
+
+    it('should filter by tier and status together with search', async () => {
+      prisma.user.findMany.mockResolvedValue([]);
+      prisma.user.count.mockResolvedValue(0);
+
+      await service.findAll({
+        search: 'jo',
+        tierId: 'tier-1',
+        status: AccountStatus.ACTIVE,
+      });
+
+      const where = { tierId: 'tier-1', status: AccountStatus.ACTIVE };
+      const callArgs = prisma.user.findMany.mock.calls.at(0) as
+        [{ where: unknown }] | undefined;
+
+      expect(callArgs?.[0]?.where).toMatchObject(where);
+    });
+
+    it('should filter by a permitted role but never SUPER_ADMIN', async () => {
+      prisma.user.findMany.mockResolvedValue([]);
+      prisma.user.count.mockResolvedValue(0);
+
+      await service.findAll({ role: Role.SUBSCRIBER });
+
+      const where = { roles: { some: { role: Role.SUBSCRIBER } } };
+      const callArgs = prisma.user.findMany.mock.calls.at(0) as
+        [{ where: unknown }] | undefined;
+
+      expect(callArgs?.[0]?.where).toMatchObject(where);
+    });
+
+    it('should handle a page beyond available results safely', async () => {
+      prisma.user.findMany.mockResolvedValue([]);
+      prisma.user.count.mockResolvedValue(5);
+
+      const result = await service.findAll({ page: 99, limit: 20 });
+
+      expect(result.data).toEqual([]);
+      expect(result.page).toBe(99);
+      expect(result.totalPages).toBe(1);
     });
   });
 

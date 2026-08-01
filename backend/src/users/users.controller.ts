@@ -8,6 +8,7 @@ import {
   ParseEnumPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { Role } from '@prisma/client';
@@ -23,6 +24,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { AssignRoleDto } from './dto/assign-role.dto';
 import { AssignTierDto } from './dto/assign-tier.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
+import { ListUsersQueryDto } from './dto/list-users-query.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.SUPER_ADMIN, Role.ARTIST)
@@ -36,8 +38,8 @@ export class UsersController {
   }
 
   @Get()
-  findAll() {
-    return this.usersService.findAll();
+  findAll(@Query() query: ListUsersQueryDto) {
+    return this.usersService.findAll(query);
   }
 
   @Get(':id')

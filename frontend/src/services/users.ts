@@ -33,6 +33,23 @@ export interface User {
   updatedAt: string
 }
 
+export interface UserListQuery {
+  search?: string
+  tierId?: string
+  status?: AccountStatus
+  role?: Role
+  page?: number
+  limit?: number
+}
+
+export interface UserListResponse {
+  data: User[]
+  page: number
+  limit: number
+  total: number
+  totalPages: number
+}
+
 export interface CreateUserData {
   email: string
   passwordHash: string
@@ -45,8 +62,10 @@ export interface UpdateUserData {
   name?: string
 }
 
-export async function fetchUsers() {
-  const response = await api.get<User[]>("/users")
+export async function fetchUsers(query: UserListQuery = {}) {
+  const response = await api.get<UserListResponse>("/users", {
+    params: query,
+  })
 
   return response.data
 }

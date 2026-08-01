@@ -6,9 +6,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { AccountStatus, Role, User } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateOwnProfileDto } from './dto/update-own-profile.dto';
+import {
+  DEFAULT_PAGE_SIZE,
+  ListUsersQueryDto,
+} from './dto/list-users-query.dto';
 
 export interface SafeUserTier {
   id: string;
@@ -72,16 +77,56 @@ export class UsersService {
     return this.sanitize(user);
   }
 
-  async findAll() {
-    const users = await this.prisma.user.findMany({
-      where: {
-        roles: { none: { role: HIDDEN_ROLE } },
-      },
-      include: userInclude,
-      orderBy: { createdAt: 'asc' },
-    });
+  async findAll(query: ListUsersQueryDto = {}) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? DEFAULT_PAGE_SIZE;
+    const skip = (page - 1) * limit;
 
-    return users.map((user) => this.sanitize(user));
+    const where: Prisma.UserWhereInput = {
+      roles: { none: { role: HIDDEN_ROLE } },
+    };
+
+    const search = query.search?.trim();
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    if (query.tierId) {
+      where.tierId = query.tierId;
+    }
+
+    if (query.status) {
+      where.status = query.status;
+    }
+
+    if (query.role && query.role !== Role.SUPER_ADMIN) {
+      where.roles = { some: { role: query.role } };
+    }
+
+    const [users, total] = await this.prisma.$transaction([
+      this.prisma.user.findMany({
+        where,
+        include: userInclude,
+        orderBy: { createdAt: 'asc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.user.count({ where }),
+    ]);
+
+    const totalPages = total === 0 ? 0 : Math.ceil(total / limit);
+
+    return {
+      data: users.map((user) => this.sanitize(user)),
+      page,
+      limit,
+      total,
+      totalPages,
+    };
   }
 
   async findOne(id: string, actor?: UserActor) {

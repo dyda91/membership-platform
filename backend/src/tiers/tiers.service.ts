@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -48,6 +49,27 @@ export class TiersService {
 
   async remove(id: string) {
     await this.findOne(id);
+
+    const [userCount, postCount] = await this.prisma.$transaction([
+      this.prisma.user.count({ where: { tierId: id } }),
+      this.prisma.post.count({ where: { tierId: id } }),
+    ]);
+
+    if (userCount > 0 || postCount > 0) {
+      const references: string[] = [];
+
+      if (userCount > 0) {
+        references.push(`${userCount} user(s)`);
+      }
+
+      if (postCount > 0) {
+        references.push(`${postCount} post(s)`);
+      }
+
+      throw new BadRequestException(
+        `Cannot delete tier: still referenced by ${references.join(' and ')}`,
+      );
+    }
 
     return this.prisma.tier.delete({ where: { id } });
   }

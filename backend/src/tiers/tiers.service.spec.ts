@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { TiersService } from './tiers.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -23,6 +27,9 @@ describe('TiersService', () => {
       update: jest.Mock;
       delete: jest.Mock;
     };
+    user: { count: jest.Mock };
+    post: { count: jest.Mock };
+    $transaction: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -34,7 +41,16 @@ describe('TiersService', () => {
         update: jest.fn(),
         delete: jest.fn(),
       },
+      user: { count: jest.fn() },
+      post: { count: jest.fn() },
+      $transaction: jest.fn(),
     };
+    prisma.$transaction.mockImplementation(((arg: unknown) => {
+      if (Array.isArray(arg)) {
+        return Promise.all(arg);
+      }
+      return undefined;
+    }) as never);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [TiersService, { provide: PrismaService, useValue: prisma }],
@@ -129,8 +145,10 @@ describe('TiersService', () => {
   });
 
   describe('remove', () => {
-    it('should delete a tier', async () => {
+    it('should delete a tier with no references', async () => {
       prisma.tier.findUnique.mockResolvedValue(makeTier());
+      prisma.user.count.mockResolvedValue(0);
+      prisma.post.count.mockResolvedValue(0);
       prisma.tier.delete.mockResolvedValue(makeTier());
 
       const result = await service.remove('tier-1');
@@ -139,6 +157,28 @@ describe('TiersService', () => {
         where: { id: 'tier-1' },
       });
       expect(result.id).toBe('tier-1');
+    });
+
+    it('should prevent deletion when users reference the tier', async () => {
+      prisma.tier.findUnique.mockResolvedValue(makeTier());
+      prisma.user.count.mockResolvedValue(3);
+      prisma.post.count.mockResolvedValue(0);
+
+      await expect(service.remove('tier-1')).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(prisma.tier.delete).not.toHaveBeenCalled();
+    });
+
+    it('should prevent deletion when posts reference the tier', async () => {
+      prisma.tier.findUnique.mockResolvedValue(makeTier());
+      prisma.user.count.mockResolvedValue(0);
+      prisma.post.count.mockResolvedValue(2);
+
+      await expect(service.remove('tier-1')).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(prisma.tier.delete).not.toHaveBeenCalled();
     });
 
     it('should throw NotFoundException when the tier does not exist', async () => {
