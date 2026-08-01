@@ -1,16 +1,20 @@
 import { Link, Outlet } from "react-router-dom"
 import { useAuth } from "../../contexts/AuthContext"
+import {
+  canManageArtistProfile,
+  canManagePosts,
+  canManageTiers,
+  canManageUsers,
+} from "../../services/permissions"
 import TierBadge from "../auth/TierBadge"
 
 export default function MainLayout() {
-  const {
-    isAuthenticated,
-    isAdmin,
-    isSuperAdmin,
-    canManageContent,
-    user,
-    logout,
-  } = useAuth()
+  const { user, isAuthenticated, isSuperAdmin, logout } = useAuth()
+
+  const showDashboard = canManagePosts(user)
+  const showUsers = canManageUsers(user)
+  const showTiers = canManageTiers(user)
+  const showArtistProfile = canManageArtistProfile(user)
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -29,7 +33,7 @@ export default function MainLayout() {
                 Feed
               </Link>
 
-              {canManageContent && (
+              {showDashboard && (
                 <Link
                   to="/dashboard"
                   className="text-sm font-medium text-gray-700 hover:text-black"
@@ -38,7 +42,7 @@ export default function MainLayout() {
                 </Link>
               )}
 
-              {canManageContent && (
+              {showDashboard && (
                 <Link
                   to="/posts"
                   className="text-sm font-medium text-gray-700 hover:text-black"
@@ -47,7 +51,7 @@ export default function MainLayout() {
                 </Link>
               )}
 
-              {isAdmin && (
+              {showUsers && (
                 <Link
                   to="/users"
                   className="text-sm font-medium text-gray-700 hover:text-black"
@@ -56,7 +60,7 @@ export default function MainLayout() {
                 </Link>
               )}
 
-              {isAdmin && (
+              {showTiers && (
                 <Link
                   to="/tiers"
                   className="text-sm font-medium text-gray-700 hover:text-black"
@@ -65,7 +69,7 @@ export default function MainLayout() {
                 </Link>
               )}
 
-              {canManageContent && (
+              {showArtistProfile && (
                 <Link
                   to="/artist-profile/edit"
                   className="text-sm font-medium text-gray-700 hover:text-black"

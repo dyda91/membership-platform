@@ -9,6 +9,7 @@ import { UsersService } from '../users/users.service';
 import { PasswordService } from './password.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import type { AuthenticatedUser } from './jwt.strategy';
 
 @Injectable()
 export class AuthService {
@@ -69,6 +70,31 @@ export class AuthService {
     }
 
     return this.toSafeUser(user);
+  }
+
+  /**
+   * Builds the safe current-session payload for /auth/me.
+   * It reflects the database-backed request user resolved by the JWT strategy.
+   */
+  buildSession(user: AuthenticatedUser) {
+    const roles = user.roles;
+    const isSuperAdmin = roles.includes(Role.SUPER_ADMIN);
+    const isArtist = roles.includes(Role.ARTIST);
+    const isSubscriber = roles.includes(Role.SUBSCRIBER);
+
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      status: user.status,
+      roles,
+      tier: user.tier,
+      tierId: user.tier?.id ?? null,
+      tierPriority: user.tier?.priority ?? null,
+      isSuperAdmin,
+      isArtist,
+      isSubscriber,
+    };
   }
 
   private toSafeUser(

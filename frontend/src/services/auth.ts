@@ -13,6 +13,20 @@ export interface RegisterData {
   password: string
 }
 
+export interface SessionUser {
+  id: string
+  email: string
+  name: string | null
+  status: "ACTIVE" | "DISABLED"
+  roles: ("SUPER_ADMIN" | "ARTIST" | "SUBSCRIBER")[]
+  tier: { id: string; name: string; priority: number } | null
+  tierId: string | null
+  tierPriority: number | null
+  isSuperAdmin: boolean
+  isArtist: boolean
+  isSubscriber: boolean
+}
+
 export async function register(data: RegisterData): Promise<User> {
   const response = await api.post<User>("/auth/register", data)
 
@@ -30,10 +44,14 @@ export async function login(email: string, password: string): Promise<User> {
   return response.data.user
 }
 
-export async function fetchCurrentUser(): Promise<User> {
-  const response = await api.get<User>("/auth/profile")
+export async function fetchCurrentSession(): Promise<SessionUser> {
+  const response = await api.get<SessionUser>("/auth/me")
 
   return response.data
+}
+
+export async function fetchCurrentUser(): Promise<SessionUser> {
+  return fetchCurrentSession()
 }
 
 export function logout() {

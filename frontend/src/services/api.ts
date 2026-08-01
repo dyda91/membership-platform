@@ -3,6 +3,8 @@ import type { AxiosError } from "axios"
 
 import { clearToken, getToken } from "./token-storage"
 
+export const SESSION_INVALIDATED_EVENT = "platform:session-invalidated"
+
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
   headers: {
@@ -28,10 +30,7 @@ api.interceptors.response.use(
 
       if (!isAuthRequest) {
         clearToken()
-      }
-
-      if (!isAuthRequest && window.location.pathname !== "/login") {
-        window.location.href = "/login"
+        window.dispatchEvent(new Event(SESSION_INVALIDATED_EVENT))
       }
     }
 

@@ -255,4 +255,62 @@ describe('AuthService', () => {
       expect(result).toBeNull();
     });
   });
+
+  describe('buildSession', () => {
+    const base = {
+      id: 'uuid-1',
+      email: 'user@test.com',
+      name: null,
+      status: AccountStatus.ACTIVE,
+      tierId: null,
+      tier: null,
+      tierPriority: null,
+    };
+
+    it('builds a subscriber session with safe fields', () => {
+      const session = service.buildSession({
+        ...base,
+        roles: [Role.SUBSCRIBER],
+      });
+
+      expect(session).toEqual({
+        id: 'uuid-1',
+        email: 'user@test.com',
+        name: null,
+        status: AccountStatus.ACTIVE,
+        roles: [Role.SUBSCRIBER],
+        tier: null,
+        tierId: null,
+        tierPriority: null,
+        isSuperAdmin: false,
+        isArtist: false,
+        isSubscriber: true,
+      });
+      expect(session).not.toHaveProperty('passwordHash');
+    });
+
+    it('flags an artist session with isArtist true', () => {
+      const session = service.buildSession({
+        ...base,
+        roles: [Role.ARTIST],
+      });
+
+      expect(session.isArtist).toBe(true);
+      expect(session.isSubscriber).toBe(false);
+    });
+
+    it('flags a super-admin session and includes tier priority', () => {
+      const session = service.buildSession({
+        ...base,
+        roles: [Role.SUPER_ADMIN],
+        tierId: 'tier-1',
+        tier: { id: 'tier-1', name: 'Gold', priority: 5 },
+        tierPriority: 5,
+      });
+
+      expect(session.isSuperAdmin).toBe(true);
+      expect(session.tierPriority).toBe(5);
+      expect(session.tier?.name).toBe('Gold');
+    });
+  });
 });

@@ -1,15 +1,16 @@
 import { Navigate, Outlet } from "react-router-dom"
 
 import { useAuth } from "../../contexts/AuthContext"
+import { canAccessDashboard } from "../../services/permissions"
 
 export default function RequireAdmin() {
-  const { isAdmin, isLoading } = useAuth()
+  const { user, isLoading } = useAuth()
 
   if (isLoading) {
     return <p className="p-6 text-gray-600">Carregando...</p>
   }
 
-  if (!isAdmin) {
+  if (!canAccessDashboard(user)) {
     return <Navigate to="/" replace />
   }
 

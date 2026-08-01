@@ -17,7 +17,9 @@ export interface AuthenticatedUser {
   name: string | null;
   status: AccountStatus;
   roles: Role[];
+  tierId: string | null;
   tier: { id: string; name: string; priority: number } | null;
+  tierPriority: number | null;
 }
 
 @Injectable()
@@ -49,6 +51,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       name: user.name,
       status: user.status,
       roles: user.roles.map((item) => item.role),
+      tierId: user.tierId,
       tier: user.tier
         ? {
             id: user.tier.id,
@@ -56,6 +59,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
             priority: user.tier.priority,
           }
         : null,
+      tierPriority: user.tier?.priority ?? null,
     };
   }
 }

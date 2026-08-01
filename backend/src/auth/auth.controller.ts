@@ -25,10 +25,16 @@ export class AuthController {
     return this.authService.login(dto);
   }
 
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  me(@CurrentUser() user: AuthenticatedUser) {
+    return this.authService.buildSession(user);
+  }
+
   @Get('profile')
   @UseGuards(JwtAuthGuard)
   profile(@CurrentUser() user: AuthenticatedUser) {
-    return user;
+    return this.authService.buildSession(user);
   }
 
   @Patch('profile')
