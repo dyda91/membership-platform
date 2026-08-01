@@ -3,6 +3,17 @@ import { PostStatus, Role } from '@prisma/client';
 import { FeedService } from './feed.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
+import { ArtistProfileService } from '../artist-profile/artist-profile.service';
+
+const makeArtistProfile = () => ({
+  configured: true,
+  name: 'Artist',
+  bio: 'Bio',
+  presentationText: 'Presentation',
+  avatarUrl: null,
+  bannerUrl: null,
+  contactActions: [],
+});
 
 const makeMedia = (overrides: Record<string, unknown> = {}) => ({
   id: 'media-1',
@@ -47,6 +58,7 @@ describe('FeedService', () => {
     };
   };
   let storage: { getUrl: jest.Mock };
+  let artistProfileService: { getPublicProfile: jest.Mock };
 
   beforeEach(async () => {
     prisma = {
@@ -56,12 +68,16 @@ describe('FeedService', () => {
       },
     };
     storage = { getUrl: jest.fn() };
+    artistProfileService = {
+      getPublicProfile: jest.fn().mockResolvedValue(makeArtistProfile()),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         FeedService,
         { provide: PrismaService, useValue: prisma },
         { provide: StorageService, useValue: storage },
+        { provide: ArtistProfileService, useValue: artistProfileService },
       ],
     }).compile();
 
@@ -169,5 +185,45 @@ describe('FeedService', () => {
     const response = await service.getFeed(visitor);
 
     expect(response.items[0].media[0].url).toBeUndefined();
+  });
+
+  it('includes the artist public profile in the response', async () => {
+    prisma.post.findMany.mockResolvedValue([makePost()]);
+    prisma.post.count.mockResolvedValue(1);
+
+    const response = await service.getFeed(visitor);
+
+    expect(response.artist.configured).toBe(true);
+    expect(response.artist.name).toBe('Artist');
+  });
+
+  it('keeps the feed usable when the artist profile fails', async () => {
+    prisma.post.findMany.mockResolvedValue([makePost()]);
+    prisma.post.count.mockResolvedValue(1);
+    artistProfileService.getPublicProfile.mockRejectedValue(new Error('boom'));
+
+    const response = await service.getFeed(visitor);
+
+    expect(response.artist.configured).toBe(false);
+    expect(response.items).toHaveLength(1);
+  });
+
+  it('returns a controlled unconfigured artist state', async () => {
+    prisma.post.findMany.mockResolvedValue([makePost()]);
+    prisma.post.count.mockResolvedValue(1);
+    artistProfileService.getPublicProfile.mockResolvedValue({
+      configured: false,
+      name: null,
+      bio: null,
+      presentationText: null,
+      avatarUrl: null,
+      bannerUrl: null,
+      contactActions: [],
+    });
+
+    const response = await service.getFeed(visitor);
+
+    expect(response.artist.configured).toBe(false);
+    expect(response.artist.contactActions).toEqual([]);
   });
 });

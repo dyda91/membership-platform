@@ -7,6 +7,18 @@ export interface LoginResponse {
   user: User
 }
 
+export interface RegisterData {
+  name?: string
+  email: string
+  password: string
+}
+
+export async function register(data: RegisterData): Promise<User> {
+  const response = await api.post<User>("/auth/register", data)
+
+  return response.data
+}
+
 export async function login(email: string, password: string): Promise<User> {
   const response = await api.post<LoginResponse>("/auth/login", {
     email,

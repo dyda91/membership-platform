@@ -180,6 +180,185 @@ export class UsersService {
     return this.findOne(id, actor);
   }
 
+  /**
+   * Promotes an eligible account to the ARTIST role.
+   * Only SUPER_ADMIN may promote, and at most one active ARTIST may exist.
+   * Runs inside a transaction guarded by a database-level partial unique index.
+   */
+  async promoteToArtist(id: string, actor?: UserActor) {
+    if (!actor || !actor.roles.includes(Role.SUPER_ADMIN)) {
+      throw new ForbiddenException(
+        'Only SUPER_ADMIN can assign the ARTIST role',
+      );
+    }
+
+    const target = await this.prisma.user.findUnique({
+      where: { id },
+      include: userInclude,
+    });
+
+    if (!target) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (this.isHidden(target)) {
+      throw new BadRequestException('Hidden system accounts cannot be artists');
+    }
+
+    if (target.status !== AccountStatus.ACTIVE) {
+      throw new BadRequestException('Only active accounts can be artists');
+    }
+
+    const existingArtist = await this.prisma.user.findFirst({
+      where: { roles: { some: { role: Role.ARTIST } } },
+      select: { id: true },
+    });
+
+    if (existingArtist) {
+      throw new ConflictException(
+        'An active artist already exists. Use replacement instead.',
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.userRole.upsert({
+        where: { userId_role: { userId: id, role: Role.ARTIST } },
+        create: { userId: id, role: Role.ARTIST },
+        update: {},
+      });
+
+      // Ensure the promoted account has a public artist profile record.
+      await tx.artist.upsert({
+        where: { userId: id },
+        create: {
+          userId: id,
+          name: target.name ?? 'Artist',
+          description: '',
+        },
+        update: {},
+      });
+
+      return this.findOne(id, actor);
+    });
+  }
+
+  /**
+   * Atomically replaces the active artist with an eligible replacement account.
+   * Exactly one active ARTIST exists after the operation. Public posts, tiers,
+   * media and the artist page remain preserved.
+   */
+  async replaceArtist(replacementId: string, actor?: UserActor) {
+    if (!actor || !actor.roles.includes(Role.SUPER_ADMIN)) {
+      throw new ForbiddenException('Only SUPER_ADMIN can replace the artist');
+    }
+
+    const replacement = await this.prisma.user.findUnique({
+      where: { id: replacementId },
+      include: userInclude,
+    });
+
+    if (!replacement) {
+      throw new NotFoundException('Replacement user not found');
+    }
+
+    if (this.isHidden(replacement)) {
+      throw new BadRequestException('Hidden system accounts cannot be artists');
+    }
+
+    if (replacement.status !== AccountStatus.ACTIVE) {
+      throw new BadRequestException('Only active accounts can be artists');
+    }
+
+    if (replacement.roles.some((item) => item.role === Role.ARTIST)) {
+      throw new ConflictException(
+        'The replacement account is already an artist',
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const previousArtist = await tx.user.findFirst({
+        where: { roles: { some: { role: Role.ARTIST } } },
+        include: userInclude,
+      });
+
+      if (previousArtist) {
+        await tx.userRole.deleteMany({
+          where: {
+            userId: previousArtist.id,
+            role: Role.ARTIST,
+          },
+        });
+      }
+
+      await tx.userRole.upsert({
+        where: { userId_role: { userId: replacementId, role: Role.ARTIST } },
+        create: { userId: replacementId, role: Role.ARTIST },
+        update: {},
+      });
+
+      // Transfer the singleton public artist page to the replacement account,
+      // preserving its configured public data, media and contacts.
+      const previousArtistRecord = previousArtist
+        ? await tx.artist.findUnique({
+            where: { userId: previousArtist.id },
+            select: { id: true },
+          })
+        : null;
+
+      if (previousArtistRecord) {
+        await tx.artist.update({
+          where: { id: previousArtistRecord.id },
+          data: { userId: replacementId },
+        });
+      } else {
+        await tx.artist.upsert({
+          where: { userId: replacementId },
+          create: {
+            userId: replacementId,
+            name: replacement.name ?? 'Artist',
+            description: '',
+          },
+          update: {},
+        });
+      }
+
+      return this.findOne(replacementId, actor);
+    });
+  }
+
+  /**
+   * Returns the single active artist account, or null when none exists.
+   */
+  async getActiveArtist() {
+    const artist = await this.prisma.user.findFirst({
+      where: { roles: { some: { role: Role.ARTIST } } },
+      include: userInclude,
+    });
+
+    return artist ? this.sanitize(artist) : null;
+  }
+
+  /**
+   * Returns eligible non-hidden accounts that may be promoted to ARTIST.
+   * Excludes SUPER_ADMIN, existing ARTIST accounts and non-active accounts.
+   */
+  async getArtistCandidates() {
+    const users = await this.prisma.user.findMany({
+      where: {
+        status: AccountStatus.ACTIVE,
+        roles: {
+          none: {
+            role: { in: [Role.SUPER_ADMIN, Role.ARTIST] },
+          },
+        },
+      },
+      include: userInclude,
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return users.map((user) => this.sanitize(user));
+  }
+
   async setStatus(id: string, status: AccountStatus, actor?: UserActor) {
     const user = await this.getUserOrThrow(id, actor);
 

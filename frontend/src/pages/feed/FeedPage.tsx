@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useState } from "react"
 
 import { fetchFeed } from "../../services/feed"
-import type { FeedPost } from "../../services/feed"
+import type { FeedArtist, FeedPost } from "../../services/feed"
 import FeedList from "../../components/feed/FeedList"
+import ArtistHeader from "../../components/artist/ArtistHeader"
+import NoArtistConfiguredState from "../../components/artist/NoArtistConfiguredState"
 
 const PAGE_SIZE = 10
 
 export default function FeedPage() {
   const [posts, setPosts] = useState<FeedPost[]>([])
+  const [artist, setArtist] = useState<FeedArtist | null>(null)
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -21,6 +24,7 @@ export default function FeedPage() {
     try {
       const data = await fetchFeed(1, PAGE_SIZE)
       setPosts(data.items)
+      setArtist(data.artist)
       setTotal(data.total)
       setPage(1)
     } catch {
@@ -47,6 +51,7 @@ export default function FeedPage() {
     try {
       const data = await fetchFeed(page + 1, PAGE_SIZE)
       setPosts((current) => [...current, ...data.items])
+      setArtist(data.artist)
       setPage(data.page)
       setTotal(data.total)
     } catch {
@@ -62,10 +67,16 @@ export default function FeedPage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h2 className="text-3xl font-bold text-black">Feed</h2>
+      {artist?.configured ? (
+        <ArtistHeader artist={artist} />
+      ) : (
+        <NoArtistConfiguredState />
+      )}
+
+      <h2 className="mt-6 text-3xl font-bold text-black">Feed</h2>
 
       <p className="mt-2 text-gray-600">
-        Veja os conteúdos publicados pela plataforma.
+        Veja os conteúdos publicados pela artista.
       </p>
 
       {error && (
@@ -73,7 +84,7 @@ export default function FeedPage() {
       )}
 
       <div className="mt-6">
-        <FeedList posts={posts} />
+        <FeedList posts={posts} contactActions={artist?.contactActions ?? []} />
       </div>
 
       {hasMore && (

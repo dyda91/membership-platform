@@ -2,9 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { PostStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
+import { ArtistProfileService } from '../artist-profile/artist-profile.service';
 import { canAccessContent } from '../common/content-access.util';
 import type { ContentViewer } from '../common/content-access.util';
-import type { FeedPost, FeedResponse } from './feed.types';
+import type { FeedArtist, FeedPost, FeedResponse } from './feed.types';
 
 export interface FeedViewer {
   viewer: ContentViewer | null;
@@ -15,6 +16,7 @@ export class FeedService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    private readonly artistProfileService: ArtistProfileService,
   ) {}
 
   async getFeed(
@@ -25,7 +27,7 @@ export class FeedService {
     const safePage = Math.max(1, page);
     const safeLimit = Math.min(50, Math.max(1, limit));
 
-    const [posts, total] = await Promise.all([
+    const [posts, total, artist] = await Promise.all([
       this.prisma.post.findMany({
         where: { status: PostStatus.PUBLISHED },
         include: {
@@ -42,6 +44,7 @@ export class FeedService {
       this.prisma.post.count({
         where: { status: PostStatus.PUBLISHED },
       }),
+      this.safeArtistProfile(),
     ]);
 
     const items: FeedPost[] = await Promise.all(
@@ -108,6 +111,27 @@ export class FeedService {
       page: safePage,
       limit: safeLimit,
       total,
+      artist,
     };
+  }
+
+  /**
+   * Artist-profile data must never crash the Feed. Returns a safe
+   * unconfigured state when no artist is active or data is unavailable.
+   */
+  private async safeArtistProfile(): Promise<FeedArtist> {
+    try {
+      return await this.artistProfileService.getPublicProfile();
+    } catch {
+      return {
+        configured: false,
+        name: null,
+        bio: null,
+        presentationText: null,
+        avatarUrl: null,
+        bannerUrl: null,
+        contactActions: [],
+      };
+    }
   }
 }

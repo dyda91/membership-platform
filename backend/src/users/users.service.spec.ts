@@ -43,16 +43,25 @@ describe('UsersService', () => {
       create: jest.Mock;
       findMany: jest.Mock;
       findUnique: jest.Mock;
+      findFirst: jest.Mock;
       update: jest.Mock;
       delete: jest.Mock;
     };
     userRole: {
       upsert: jest.Mock;
       delete: jest.Mock;
+      deleteMany: jest.Mock;
     };
     tier: {
       findUnique: jest.Mock;
     };
+    artist: {
+      upsert: jest.Mock;
+      findUnique: jest.Mock;
+      findFirst: jest.Mock;
+      update: jest.Mock;
+    };
+    $transaction: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -61,17 +70,29 @@ describe('UsersService', () => {
         create: jest.fn(),
         findMany: jest.fn(),
         findUnique: jest.fn(),
+        findFirst: jest.fn(),
         update: jest.fn(),
         delete: jest.fn(),
       },
       userRole: {
         upsert: jest.fn(),
         delete: jest.fn(),
+        deleteMany: jest.fn(),
       },
       tier: {
         findUnique: jest.fn(),
       },
+      artist: {
+        upsert: jest.fn(),
+        findUnique: jest.fn(),
+        findFirst: jest.fn(),
+        update: jest.fn(),
+      },
+      $transaction: jest.fn(),
     };
+    prisma.$transaction.mockImplementation(
+      (callback: (tx: typeof prisma) => unknown) => callback(prisma),
+    );
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [UsersService, { provide: PrismaService, useValue: prisma }],
@@ -355,6 +376,132 @@ describe('UsersService', () => {
       await expect(service.remove('root-1', artistActor)).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  describe('promoteToArtist', () => {
+    it('allows SUPER_ADMIN to promote an eligible subscriber', async () => {
+      prisma.user.findUnique.mockResolvedValue(makeUser());
+      prisma.user.findFirst.mockResolvedValue(null);
+      prisma.userRole.upsert.mockResolvedValue({
+        userId: 'uuid-1',
+        role: Role.ARTIST,
+      });
+      prisma.user.findUnique.mockResolvedValue(
+        makeUser({ roles: [{ role: Role.ARTIST }] }),
+      );
+
+      const result = await service.promoteToArtist('uuid-1', superAdminActor);
+
+      expect(result?.roles).toContain(Role.ARTIST);
+    });
+
+    it('prevents promotion when another active artist exists', async () => {
+      prisma.user.findUnique.mockResolvedValue(makeUser());
+      prisma.user.findFirst.mockResolvedValue({ id: 'artist-1' });
+
+      await expect(
+        service.promoteToArtist('uuid-1', superAdminActor),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('prevents ARTIST from promoting', async () => {
+      prisma.user.findUnique.mockResolvedValue(makeUser());
+
+      await expect(
+        service.promoteToArtist('uuid-1', artistActor),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('prevents hidden SUPER_ADMIN accounts from becoming artists', async () => {
+      prisma.user.findUnique.mockResolvedValue(
+        makeUser({ roles: [{ role: Role.SUPER_ADMIN }] }),
+      );
+
+      await expect(
+        service.promoteToArtist('root-1', superAdminActor),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('replaceArtist', () => {
+    it('atomically replaces the active artist and preserves one artist', async () => {
+      prisma.user.findUnique
+        .mockResolvedValueOnce(
+          makeUser({ id: 'replacement-1', roles: [{ role: Role.SUBSCRIBER }] }),
+        )
+        .mockResolvedValueOnce(
+          makeUser({ id: 'replacement-1', roles: [{ role: Role.ARTIST }] }),
+        );
+      prisma.user.findFirst.mockResolvedValue(
+        makeUser({ id: 'old-artist', roles: [{ role: Role.ARTIST }] }),
+      );
+      prisma.userRole.deleteMany.mockResolvedValue({ count: 1 });
+      prisma.userRole.upsert.mockResolvedValue({
+        userId: 'replacement-1',
+        role: Role.ARTIST,
+      });
+
+      const result = await service.replaceArtist(
+        'replacement-1',
+        superAdminActor,
+      );
+
+      expect(prisma.userRole.deleteMany).toHaveBeenCalledWith({
+        where: { userId: 'old-artist', role: Role.ARTIST },
+      });
+      expect(prisma.userRole.upsert).toHaveBeenCalledWith({
+        where: { userId_role: { userId: 'replacement-1', role: Role.ARTIST } },
+        create: { userId: 'replacement-1', role: Role.ARTIST },
+        update: {},
+      });
+      expect(result?.roles).toContain(Role.ARTIST);
+    });
+
+    it('prevents ARTIST from replacing the artist', async () => {
+      prisma.user.findUnique.mockResolvedValue(makeUser());
+
+      await expect(
+        service.replaceArtist('uuid-1', artistActor),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('rejects a hidden replacement target', async () => {
+      prisma.user.findUnique.mockResolvedValue(
+        makeUser({ roles: [{ role: Role.SUPER_ADMIN }] }),
+      );
+
+      await expect(
+        service.replaceArtist('root-1', superAdminActor),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects an already-artist replacement target', async () => {
+      prisma.user.findUnique.mockResolvedValue(
+        makeUser({ roles: [{ role: Role.ARTIST }] }),
+      );
+
+      await expect(
+        service.replaceArtist('uuid-1', superAdminActor),
+      ).rejects.toThrow(ConflictException);
+    });
+  });
+
+  describe('getArtistCandidates', () => {
+    it('excludes SUPER_ADMIN, ARTIST and inactive accounts', async () => {
+      prisma.user.findMany.mockResolvedValue([makeUser()]);
+
+      const result = await service.getArtistCandidates();
+
+      expect(prisma.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            status: AccountStatus.ACTIVE,
+            roles: { none: { role: { in: [Role.SUPER_ADMIN, Role.ARTIST] } } },
+          },
+        }),
+      );
+      expect(result).toHaveLength(1);
     });
   });
 });

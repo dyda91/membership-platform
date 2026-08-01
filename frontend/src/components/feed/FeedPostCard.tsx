@@ -1,15 +1,20 @@
 import type { FeedPost } from "../../services/feed"
+import type { FeedContactAction } from "../../services/artist-profile"
 import PostMediaGallery from "./PostMediaGallery"
 
 interface FeedPostCardProps {
   post: FeedPost
+  contactActions?: FeedContactAction[]
 }
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString("pt-BR")
 }
 
-export default function FeedPostCard({ post }: FeedPostCardProps) {
+export default function FeedPostCard({
+  post,
+  contactActions = [],
+}: FeedPostCardProps) {
   return (
     <article className="rounded-lg border border-gray-200 bg-white p-6 shadow">
       <div className="flex items-center justify-between">
@@ -35,6 +40,7 @@ export default function FeedPostCard({ post }: FeedPostCardProps) {
       <PostMediaGallery
         media={post.media}
         tierName={post.requiredTier?.name}
+        contactActions={contactActions}
       />
     </article>
   )

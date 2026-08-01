@@ -13,6 +13,7 @@ import { PostsModule } from './posts/posts.module';
 import { MediaModule } from './media/media.module';
 import { ArtistsModule } from './artists/artists.module';
 import { FeedModule } from './feed/feed.module';
+import { ArtistProfileModule } from './artist-profile/artist-profile.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { FeedModule } from './feed/feed.module';
     MediaModule,
     ArtistsModule,
     FeedModule,
+    ArtistProfileModule,
   ],
   controllers: [AppController],
   providers: [AppService],

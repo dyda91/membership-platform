@@ -67,16 +67,58 @@ describe('AuthService', () => {
       usersService.create.mockResolvedValue(safeUser);
 
       const result = await service.register({
-        email: 'user@test.com',
+        email: 'User@Test.com',
         password: 'secret123',
       });
 
       expect(passwordService.hash).toHaveBeenCalledWith('secret123');
       expect(usersService.create).toHaveBeenCalledWith({
         email: 'user@test.com',
+        name: undefined,
         passwordHash: '$2b$10$hashed-value',
       });
       expect(result.email).toBe('user@test.com');
+    });
+
+    it('should pass through the optional name field', async () => {
+      usersService.findByEmail.mockResolvedValue(null);
+      passwordService.hash.mockResolvedValue('$2b$10$hashed-value');
+      usersService.create.mockResolvedValue(safeUser);
+
+      await service.register({
+        name: 'New Subscriber',
+        email: 'user@test.com',
+        password: 'secret123',
+      });
+
+      expect(usersService.create).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'New Subscriber' }),
+      );
+    });
+
+    it('must not propagate any role or tier through public registration', async () => {
+      usersService.findByEmail.mockResolvedValue(null);
+      passwordService.hash.mockResolvedValue('$2b$10$hashed-value');
+      usersService.create.mockResolvedValue(safeUser);
+
+      // Extra privileged properties are typed away at compile time; the DTO
+      // allowlist and whitelist validation pipe strip them before reaching here.
+      await service.register({
+        email: 'user@test.com',
+        password: 'secret123',
+      });
+
+      expect(usersService.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          email: 'user@test.com',
+          passwordHash: '$2b$10$hashed-value',
+        }),
+      );
+      const firstCallArgs = usersService.create.mock.calls.at(0) as
+        [Record<string, unknown>] | undefined;
+
+      expect(firstCallArgs?.[0].roles).toBeUndefined();
+      expect(firstCallArgs?.[0].tierId).toBeUndefined();
     });
 
     it('should not include the password hash in the response', async () => {

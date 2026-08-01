@@ -3,7 +3,14 @@ import { useAuth } from "../../contexts/AuthContext"
 import TierBadge from "../auth/TierBadge"
 
 export default function MainLayout() {
-  const { isAuthenticated, isAdmin, canManageContent, user, logout } = useAuth()
+  const {
+    isAuthenticated,
+    isAdmin,
+    isSuperAdmin,
+    canManageContent,
+    user,
+    logout,
+  } = useAuth()
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -14,7 +21,7 @@ export default function MainLayout() {
           </h1>
 
           <div className="flex items-center gap-4">
-            <nav className="flex gap-4">
+            <nav className="flex flex-wrap gap-4">
               <Link
                 to="/"
                 className="text-sm font-medium text-gray-700 hover:text-black"
@@ -58,6 +65,24 @@ export default function MainLayout() {
                 </Link>
               )}
 
+              {canManageContent && (
+                <Link
+                  to="/artist-profile/edit"
+                  className="text-sm font-medium text-gray-700 hover:text-black"
+                >
+                  Página da artista
+                </Link>
+              )}
+
+              {isSuperAdmin && (
+                <Link
+                  to="/system/artist"
+                  className="text-sm font-medium text-gray-700 hover:text-black"
+                >
+                  Configurar artista
+                </Link>
+              )}
+
               {isAuthenticated && (
                 <Link
                   to="/profile"
@@ -83,12 +108,20 @@ export default function MainLayout() {
                 </button>
               </div>
             ) : (
-              <Link
-                to="/login"
-                className="text-sm font-medium text-blue-600 hover:text-blue-700"
-              >
-                Entrar
-              </Link>
+              <div className="flex items-center gap-3">
+                <Link
+                  to="/register"
+                  className="text-sm font-medium text-blue-600 hover:text-blue-700"
+                >
+                  Criar conta
+                </Link>
+                <Link
+                  to="/login"
+                  className="text-sm font-medium text-gray-600 hover:text-black"
+                >
+                  Entrar
+                </Link>
+              </div>
             )}
           </div>
         </div>

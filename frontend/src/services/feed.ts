@@ -37,11 +37,30 @@ export interface FeedPost {
   media: FeedMedia[]
 }
 
+export type FeedContactActionType = "WHATSAPP" | "DISCORD"
+
+export interface FeedContactAction {
+  type: FeedContactActionType
+  label: string
+  url: string
+}
+
+export interface FeedArtist {
+  configured: boolean
+  name: string | null
+  bio: string | null
+  presentationText: string | null
+  avatarUrl: string | null
+  bannerUrl: string | null
+  contactActions: FeedContactAction[]
+}
+
 export interface FeedResponse {
   items: FeedPost[]
   page: number
   limit: number
   total: number
+  artist: FeedArtist
 }
 
 export async function fetchFeed(page = 1, limit = 20) {
