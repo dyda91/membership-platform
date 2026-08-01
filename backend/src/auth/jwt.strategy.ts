@@ -17,6 +17,7 @@ export interface AuthenticatedUser {
   name: string | null;
   status: AccountStatus;
   roles: Role[];
+  tier: { id: string; name: string; priority: number } | null;
 }
 
 @Injectable()
@@ -35,7 +36,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(payload: JwtPayload): Promise<AuthenticatedUser> {
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
-      include: { roles: true },
+      include: { roles: true, tier: true },
     });
 
     if (!user || user.status === AccountStatus.DISABLED) {
@@ -48,6 +49,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       name: user.name,
       status: user.status,
       roles: user.roles.map((item) => item.role),
+      tier: user.tier
+        ? {
+            id: user.tier.id,
+            name: user.tier.name,
+            priority: user.tier.priority,
+          }
+        : null,
     };
   }
 }

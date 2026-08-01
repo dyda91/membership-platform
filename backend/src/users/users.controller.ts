@@ -17,10 +17,11 @@ import { Roles } from '../auth/roles.decorator';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { AssignRoleDto } from './dto/assign-role.dto';
+import { AssignTierDto } from './dto/assign-tier.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN)
+@Roles(Role.SUPER_ADMIN, Role.ARTIST)
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
@@ -66,6 +67,11 @@ export class UsersController {
   @Patch(':id/status')
   setStatus(@Param('id') id: string, @Body() updateStatusDto: UpdateStatusDto) {
     return this.usersService.setStatus(id, updateStatusDto.status);
+  }
+
+  @Patch(':id/tier')
+  assignTier(@Param('id') id: string, @Body() assignTierDto: AssignTierDto) {
+    return this.usersService.assignTier(id, assignTierDto.tierId ?? null);
   }
 
   @Delete(':id')

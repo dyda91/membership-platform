@@ -1,4 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTierDto } from './dto/create-tier.dto';
 import { UpdateTierDto } from './dto/update-tier.dto';
@@ -7,27 +11,44 @@ import { UpdateTierDto } from './dto/update-tier.dto';
 export class TiersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  create(createTierDto: CreateTierDto) {
-    return this.prisma.tier.create({ data: createTierDto });
+  async create(createTierDto: CreateTierDto) {
+    try {
+      return await this.prisma.tier.create({ data: createTierDto });
+    } catch {
+      throw new ConflictException('A tier with this name already exists');
+    }
   }
 
   findAll() {
-    return this.prisma.tier.findMany();
+    return this.prisma.tier.findMany({ orderBy: { priority: 'asc' } });
   }
 
-  findOne(id: string) {
-    return this.prisma.tier.findUnique({ where: { id } });
+  async findOne(id: string) {
+    const tier = await this.prisma.tier.findUnique({ where: { id } });
+
+    if (!tier) {
+      throw new NotFoundException('Tier not found');
+    }
+
+    return tier;
   }
 
-  findByArtist(artistId: string) {
-    return this.prisma.tier.findMany({ where: { artistId } });
+  async update(id: string, updateTierDto: UpdateTierDto) {
+    await this.findOne(id);
+
+    try {
+      return await this.prisma.tier.update({
+        where: { id },
+        data: updateTierDto,
+      });
+    } catch {
+      throw new ConflictException('A tier with this name already exists');
+    }
   }
 
-  update(id: string, updateTierDto: UpdateTierDto) {
-    return this.prisma.tier.update({ where: { id }, data: updateTierDto });
-  }
+  async remove(id: string) {
+    await this.findOne(id);
 
-  remove(id: string) {
     return this.prisma.tier.delete({ where: { id } });
   }
 }

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -7,12 +8,20 @@ import { AccountStatus, Role, User } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 
+export interface SafeUserTier {
+  id: string;
+  name: string;
+  priority: number;
+}
+
 export interface SafeUser {
   id: string;
   email: string;
   name: string | null;
   status: AccountStatus;
   roles: Role[];
+  tierId: string | null;
+  tier: SafeUserTier | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -23,6 +32,16 @@ interface CreateUserData {
   name?: string;
   roles?: Role[];
 }
+
+type UserWithRelations = User & {
+  roles: { role: Role }[];
+  tier: { id: string; name: string; priority: number } | null;
+};
+
+const userInclude = {
+  roles: true,
+  tier: true,
+} as const;
 
 @Injectable()
 export class UsersService {
@@ -38,7 +57,7 @@ export class UsersService {
           create: (data.roles ?? [Role.SUBSCRIBER]).map((role) => ({ role })),
         },
       },
-      include: { roles: true },
+      include: userInclude,
     });
 
     return this.sanitize(user);
@@ -46,17 +65,21 @@ export class UsersService {
 
   async findAll() {
     const users = await this.prisma.user.findMany({
-      include: { roles: true },
+      include: userInclude,
       orderBy: { createdAt: 'asc' },
     });
 
-    return users.map((user) => this.sanitize(user));
+    return users
+      .filter((user) =>
+        user.roles.every((item) => item.role !== Role.SUPER_ADMIN),
+      )
+      .map((user) => this.sanitize(user));
   }
 
   async findOne(id: string) {
     const user = await this.prisma.user.findUnique({
       where: { id },
-      include: { roles: true },
+      include: userInclude,
     });
 
     return user ? this.sanitize(user) : null;
@@ -65,7 +88,7 @@ export class UsersService {
   findByEmail(email: string) {
     return this.prisma.user.findUnique({
       where: { email },
-      include: { roles: true },
+      include: userInclude,
     });
   }
 
@@ -79,7 +102,7 @@ export class UsersService {
     const user = await this.prisma.user.update({
       where: { id },
       data: updateUserDto,
-      include: { roles: true },
+      include: userInclude,
     });
 
     return this.sanitize(user);
@@ -115,7 +138,29 @@ export class UsersService {
     const user = await this.prisma.user.update({
       where: { id },
       data: { status },
-      include: { roles: true },
+      include: userInclude,
+    });
+
+    return this.sanitize(user);
+  }
+
+  async assignTier(id: string, tierId: string | null) {
+    await this.getUserOrThrow(id);
+
+    if (tierId !== null) {
+      const tier = await this.prisma.tier.findUnique({
+        where: { id: tierId },
+      });
+
+      if (!tier) {
+        throw new BadRequestException('Tier not found');
+      }
+    }
+
+    const user = await this.prisma.user.update({
+      where: { id },
+      data: { tierId },
+      include: userInclude,
     });
 
     return this.sanitize(user);
@@ -124,7 +169,7 @@ export class UsersService {
   async remove(id: string) {
     const user = await this.prisma.user.delete({
       where: { id },
-      include: { roles: true },
+      include: userInclude,
     });
 
     return this.sanitize(user);
@@ -140,13 +185,15 @@ export class UsersService {
     return user;
   }
 
-  private sanitize(user: User & { roles: { role: Role }[] }): SafeUser {
+  private sanitize(user: UserWithRelations): SafeUser {
     return {
       id: user.id,
       email: user.email,
       name: user.name,
       status: user.status,
       roles: user.roles.map((item) => item.role),
+      tierId: user.tierId,
+      tier: user.tier,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };

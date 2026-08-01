@@ -1,11 +1,11 @@
 import api from "./api"
 
-export type Role = "ADMIN" | "ARTIST" | "SUBSCRIBER"
+export type Role = "SUPER_ADMIN" | "ARTIST" | "SUBSCRIBER"
 
 export type AccountStatus = "ACTIVE" | "DISABLED"
 
 export const ROLES: Record<Role, Role> = {
-  ADMIN: "ADMIN",
+  SUPER_ADMIN: "SUPER_ADMIN",
   ARTIST: "ARTIST",
   SUBSCRIBER: "SUBSCRIBER",
 }
@@ -15,12 +15,20 @@ export const ACCOUNT_STATUSES: Record<AccountStatus, AccountStatus> = {
   DISABLED: "DISABLED",
 }
 
+export interface UserTier {
+  id: string
+  name: string
+  priority: number
+}
+
 export interface User {
   id: string
   email: string
   name: string | null
   status: AccountStatus
   roles: Role[]
+  tierId: string | null
+  tier: UserTier | null
   createdAt: string
   updatedAt: string
 }
@@ -75,6 +83,12 @@ export async function removeRole(id: string, role: Role) {
 
 export async function setUserStatus(id: string, status: AccountStatus) {
   const response = await api.patch<User>(`/users/${id}/status`, { status })
+
+  return response.data
+}
+
+export async function assignUserTier(id: string, tierId: string | null) {
+  const response = await api.patch<User>(`/users/${id}/tier`, { tierId })
 
   return response.data
 }

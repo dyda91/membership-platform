@@ -19,6 +19,7 @@ describe('AuthService', () => {
     name: null,
     status: AccountStatus.ACTIVE,
     roles: [{ userId: 'uuid-1', role: Role.SUBSCRIBER }],
+    tier: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -29,6 +30,7 @@ describe('AuthService', () => {
     name: user.name,
     status: user.status,
     roles: [Role.SUBSCRIBER],
+    tier: null,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   };

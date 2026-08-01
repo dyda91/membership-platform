@@ -1,14 +1,22 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { AccountStatus, Role, User } from '@prisma/client';
 import { UsersService } from './users.service';
 import { PrismaService } from '../prisma/prisma.service';
 
-type UserWithRoles = User & { roles: { role: Role }[] };
+type UserWithRoles = User & {
+  roles: { role: Role }[];
+  tier: { id: string; name: string; priority: number } | null;
+};
 
 const makeUser = (
-  overrides: Partial<Omit<UserWithRoles, 'roles'>> & {
+  overrides: Partial<Omit<UserWithRoles, 'roles' | 'tier'>> & {
     roles?: { role: Role }[];
+    tier?: UserWithRoles['tier'];
   } = {},
 ): UserWithRoles => ({
   id: 'uuid-1',
@@ -17,6 +25,8 @@ const makeUser = (
   name: 'User Name',
   status: AccountStatus.ACTIVE,
   roles: [{ role: Role.SUBSCRIBER }],
+  tierId: null,
+  tier: null,
   createdAt: new Date('2026-01-01'),
   updatedAt: new Date('2026-01-01'),
   ...overrides,
@@ -36,6 +46,9 @@ describe('UsersService', () => {
       upsert: jest.Mock;
       delete: jest.Mock;
     };
+    tier: {
+      findUnique: jest.Mock;
+    };
   };
 
   beforeEach(async () => {
@@ -50,6 +63,9 @@ describe('UsersService', () => {
       userRole: {
         upsert: jest.fn(),
         delete: jest.fn(),
+      },
+      tier: {
+        findUnique: jest.fn(),
       },
     };
 
@@ -78,7 +94,7 @@ describe('UsersService', () => {
           name: 'User Name',
           roles: { create: [{ role: Role.SUBSCRIBER }] },
         },
-        include: { roles: true },
+        include: { roles: true, tier: true },
       });
       expect(result).toEqual({
         id: user.id,
@@ -86,6 +102,8 @@ describe('UsersService', () => {
         name: user.name,
         status: user.status,
         roles: [Role.SUBSCRIBER],
+        tierId: null,
+        tier: null,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
       });
@@ -94,19 +112,19 @@ describe('UsersService', () => {
 
     it('should assign the requested roles when provided', async () => {
       prisma.user.create.mockResolvedValue(
-        makeUser({ roles: [{ role: Role.ADMIN }] }),
+        makeUser({ roles: [{ role: Role.SUPER_ADMIN }] }),
       );
 
       const expectedData = {
         email: 'user@test.com',
         passwordHash: '$2b$10$hashed-value',
-        roles: { create: [{ role: Role.ADMIN }] },
+        roles: { create: [{ role: Role.SUPER_ADMIN }] },
       };
 
       await service.create({
         email: 'user@test.com',
         passwordHash: '$2b$10$hashed-value',
-        roles: [Role.ADMIN],
+        roles: [Role.SUPER_ADMIN],
       });
 
       expect(prisma.user.create).toHaveBeenCalledWith(
@@ -125,7 +143,7 @@ describe('UsersService', () => {
       const result = await service.findAll();
 
       expect(prisma.user.findMany).toHaveBeenCalledWith({
-        include: { roles: true },
+        include: { roles: true, tier: true },
         orderBy: { createdAt: 'asc' },
       });
       expect(result).toHaveLength(2);
@@ -142,7 +160,7 @@ describe('UsersService', () => {
 
       expect(prisma.user.findUnique).toHaveBeenCalledWith({
         where: { id: 'uuid-1' },
-        include: { roles: true },
+        include: { roles: true, tier: true },
       });
       expect(result?.email).toBe('user@test.com');
       expect(result).not.toHaveProperty('passwordHash');
@@ -250,7 +268,7 @@ describe('UsersService', () => {
       expect(prisma.user.update).toHaveBeenCalledWith({
         where: { id: 'uuid-1' },
         data: { status: AccountStatus.DISABLED },
-        include: { roles: true },
+        include: { roles: true, tier: true },
       });
       expect(result.status).toBe(AccountStatus.DISABLED);
     });
@@ -276,10 +294,70 @@ describe('UsersService', () => {
       expect(prisma.user.update).toHaveBeenCalledWith({
         where: { id: 'uuid-1' },
         data: { name: 'New Name' },
-        include: { roles: true },
+        include: { roles: true, tier: true },
       });
       expect(result.name).toBe('New Name');
       expect(result).not.toHaveProperty('passwordHash');
+    });
+  });
+
+  describe('assignTier', () => {
+    it('should assign a tier to an existing user', async () => {
+      prisma.user.findUnique.mockResolvedValue(makeUser());
+      prisma.tier.findUnique.mockResolvedValue({
+        id: 'tier-1',
+        name: 'Premium',
+        priority: 1,
+      });
+      prisma.user.update.mockResolvedValue(
+        makeUser({
+          tierId: 'tier-1',
+          tier: { id: 'tier-1', name: 'Premium', priority: 1 },
+        }),
+      );
+
+      const result = await service.assignTier('uuid-1', 'tier-1');
+
+      expect(prisma.tier.findUnique).toHaveBeenCalledWith({
+        where: { id: 'tier-1' },
+      });
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'uuid-1' },
+        data: { tierId: 'tier-1' },
+        include: { roles: true, tier: true },
+      });
+      expect(result?.tier?.name).toBe('Premium');
+    });
+
+    it('should throw BadRequestException when the tier does not exist', async () => {
+      prisma.user.findUnique.mockResolvedValue(makeUser());
+      prisma.tier.findUnique.mockResolvedValue(null);
+
+      await expect(service.assignTier('uuid-1', 'missing')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should clear the tier when tierId is null', async () => {
+      prisma.user.findUnique.mockResolvedValue(makeUser());
+      prisma.user.update.mockResolvedValue(makeUser());
+
+      const result = await service.assignTier('uuid-1', null);
+
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'uuid-1' },
+        data: { tierId: null },
+        include: { roles: true, tier: true },
+      });
+      expect(result?.tier).toBeNull();
+    });
+
+    it('should throw NotFoundException when the user does not exist', async () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+
+      await expect(service.assignTier('missing', 'tier-1')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -292,7 +370,7 @@ describe('UsersService', () => {
 
       expect(prisma.user.delete).toHaveBeenCalledWith({
         where: { id: 'uuid-1' },
-        include: { roles: true },
+        include: { roles: true, tier: true },
       });
       expect(result).not.toHaveProperty('passwordHash');
     });

@@ -68,13 +68,19 @@ export class AuthService {
     return this.toSafeUser(user);
   }
 
-  private toSafeUser(user: User & { roles: { role: Role }[] }) {
+  private toSafeUser(
+    user: User & {
+      roles: { role: Role }[];
+      tier: { id: string; name: string; priority: number } | null;
+    },
+  ) {
     return {
       id: user.id,
       email: user.email,
       name: user.name,
       status: user.status,
       roles: user.roles.map((item) => item.role),
+      tier: user.tier,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };

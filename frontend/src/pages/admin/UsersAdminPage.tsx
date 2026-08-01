@@ -28,10 +28,10 @@ function errorMessage(error: unknown) {
   return "Não foi possível carregar os usuários. Tente novamente."
 }
 
-const ALL_ROLES: Role[] = ["ADMIN", "ARTIST", "SUBSCRIBER"]
+const ALL_ROLES: Role[] = ["SUPER_ADMIN", "ARTIST", "SUBSCRIBER"]
 
 const ROLE_LABELS: Record<Role, string> = {
-  ADMIN: "Administrador",
+  SUPER_ADMIN: "Super Admin",
   ARTIST: "Artista",
   SUBSCRIBER: "Assinante",
 }

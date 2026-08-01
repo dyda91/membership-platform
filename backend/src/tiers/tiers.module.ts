@@ -5,5 +5,6 @@ import { TiersController } from './tiers.controller';
 @Module({
   controllers: [TiersController],
   providers: [TiersService],
+  exports: [TiersService],
 })
 export class TiersModule {}

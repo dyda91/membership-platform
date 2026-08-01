@@ -20,6 +20,7 @@ interface AuthContextValue {
   user: User | null
   isAuthenticated: boolean
   isAdmin: boolean
+  canManageContent: boolean
   isLoading: boolean
   login: (email: string, password: string) => Promise<User>
   logout: () => void
@@ -67,7 +68,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       user,
       isAuthenticated: user !== null,
-      isAdmin: user?.roles.includes("ADMIN") ?? false,
+      isAdmin:
+        user?.roles.includes("SUPER_ADMIN") ?? user?.roles.includes("ARTIST") ?? false,
+      canManageContent:
+        user?.roles.includes("SUPER_ADMIN") ?? user?.roles.includes("ARTIST") ?? false,
       isLoading,
       login,
       logout,

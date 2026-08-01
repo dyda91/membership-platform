@@ -2,7 +2,7 @@ import { Link, Outlet } from "react-router-dom"
 import { useAuth } from "../../contexts/AuthContext"
 
 export default function MainLayout() {
-  const { isAuthenticated, isAdmin, user, logout } = useAuth()
+  const { isAuthenticated, isAdmin, canManageContent, user, logout } = useAuth()
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -21,12 +21,39 @@ export default function MainLayout() {
                 Dashboard
               </Link>
 
+              {canManageContent && (
+                <Link
+                  to="/posts"
+                  className="text-sm font-medium text-gray-700 hover:text-black"
+                >
+                  Posts
+                </Link>
+              )}
+
+              {canManageContent && (
+                <Link
+                  to="/profile"
+                  className="text-sm font-medium text-gray-700 hover:text-black"
+                >
+                  Perfil
+                </Link>
+              )}
+
               {isAdmin && (
                 <Link
                   to="/users"
                   className="text-sm font-medium text-gray-700 hover:text-black"
                 >
                   Usuários
+                </Link>
+              )}
+
+              {isAdmin && (
+                <Link
+                  to="/tiers"
+                  className="text-sm font-medium text-gray-700 hover:text-black"
+                >
+                  Tiers
                 </Link>
               )}
             </nav>

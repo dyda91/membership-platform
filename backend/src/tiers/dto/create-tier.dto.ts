@@ -1,7 +1,16 @@
+import { IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
+
 export class CreateTierDto {
-  artistId: string;
+  @IsString()
+  @IsNotEmpty()
   name: string;
+
+  @IsString()
+  @IsNotEmpty()
   description: string;
-  price: number;
-  active?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  priority?: number;
 }

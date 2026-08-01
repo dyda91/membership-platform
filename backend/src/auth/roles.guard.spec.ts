@@ -35,13 +35,19 @@ describe('RolesGuard', () => {
   });
 
   it('should allow ADMIN access to an ADMIN-only route', () => {
-    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([Role.ADMIN]);
+    jest
+      .spyOn(reflector, 'getAllAndOverride')
+      .mockReturnValue([Role.SUPER_ADMIN]);
 
-    expect(guard.canActivate(buildContext({ roles: [Role.ADMIN] }))).toBe(true);
+    expect(guard.canActivate(buildContext({ roles: [Role.SUPER_ADMIN] }))).toBe(
+      true,
+    );
   });
 
   it('should deny SUBSCRIBER access to an ADMIN-only route', () => {
-    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([Role.ADMIN]);
+    jest
+      .spyOn(reflector, 'getAllAndOverride')
+      .mockReturnValue([Role.SUPER_ADMIN]);
 
     expect(guard.canActivate(buildContext({ roles: [Role.SUBSCRIBER] }))).toBe(
       false,
@@ -49,7 +55,9 @@ describe('RolesGuard', () => {
   });
 
   it('should deny ARTIST access to an ADMIN-only route', () => {
-    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([Role.ADMIN]);
+    jest
+      .spyOn(reflector, 'getAllAndOverride')
+      .mockReturnValue([Role.SUPER_ADMIN]);
 
     expect(guard.canActivate(buildContext({ roles: [Role.ARTIST] }))).toBe(
       false,
@@ -59,7 +67,7 @@ describe('RolesGuard', () => {
   it('should allow access when the user holds one of the required roles', () => {
     jest
       .spyOn(reflector, 'getAllAndOverride')
-      .mockReturnValue([Role.ADMIN, Role.ARTIST]);
+      .mockReturnValue([Role.SUPER_ADMIN, Role.ARTIST]);
 
     expect(guard.canActivate(buildContext({ roles: [Role.ARTIST] }))).toBe(
       true,
@@ -67,7 +75,9 @@ describe('RolesGuard', () => {
   });
 
   it('should deny access when there is no authenticated user', () => {
-    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([Role.ADMIN]);
+    jest
+      .spyOn(reflector, 'getAllAndOverride')
+      .mockReturnValue([Role.SUPER_ADMIN]);
 
     expect(guard.canActivate(buildContext())).toBe(false);
   });
