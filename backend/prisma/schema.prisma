@@ -65,21 +65,19 @@ enum PostStatus {
 }
 
 model Post {
-  id           String     @id @default(uuid())
-  title        String
-  content      String
-  status       PostStatus @default(DRAFT)
-  authorId     String
-  tierId       String?
-  coverMediaId String?  @unique
+  id        String     @id @default(uuid())
+  title     String?
+  content   String
+  status    PostStatus @default(DRAFT)
+  authorId  String
+  tierId    String?
 
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 
-  author      User    @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  tier        Tier?   @relation(fields: [tierId], references: [id], onDelete: SetNull)
-  coverMedia  Media?  @relation("PostCover", fields: [coverMediaId], references: [id], onDelete: SetNull)
-  media       Media[]
+  author  User    @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  tier    Tier?   @relation(fields: [tierId], references: [id], onDelete: SetNull)
+  media   Media[]
 
   @@index([authorId])
   @@index([status, createdAt])
@@ -94,6 +92,7 @@ enum MediaType {
 model Media {
   id           String    @id @default(uuid())
   postId       String?
+  position     Int       @default(0)
   storageKey   String
   filename     String
   originalName String
@@ -107,7 +106,6 @@ model Media {
   createdAt    DateTime  @default(now())
 
   post     Post?  @relation(fields: [postId], references: [id], onDelete: Cascade)
-  coverOf  Post?  @relation("PostCover")
 
   @@index([postId])
 }

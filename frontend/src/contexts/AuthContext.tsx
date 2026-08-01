@@ -19,6 +19,7 @@ import { getToken } from "../services/token-storage"
 interface AuthContextValue {
   user: User | null
   isAuthenticated: boolean
+  isSuperAdmin: boolean
   isAdmin: boolean
   canManageContent: boolean
   isLoading: boolean
@@ -68,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       user,
       isAuthenticated: user !== null,
+      isSuperAdmin: user?.roles.includes("SUPER_ADMIN") ?? false,
       isAdmin:
         user?.roles.includes("SUPER_ADMIN") ?? user?.roles.includes("ARTIST") ?? false,
       canManageContent:

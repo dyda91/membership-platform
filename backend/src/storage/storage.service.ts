@@ -68,6 +68,32 @@ export class StorageService implements OnModuleInit {
     return this.client.presignedGetObject(this.bucket, storageKey, 3600);
   }
 
+  async getObject(storageKey: string): Promise<Buffer | null> {
+    try {
+      const stream = await this.client.getObject(this.bucket, storageKey);
+
+      return await new Promise<Buffer>((resolve, reject) => {
+        const chunks: Buffer[] = [];
+
+        stream.on('data', (chunk: Buffer) => chunks.push(chunk));
+        stream.on('end', () => resolve(Buffer.concat(chunks)));
+        stream.on('error', reject);
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  async objectExists(storageKey: string): Promise<boolean> {
+    try {
+      await this.client.statObject(this.bucket, storageKey);
+
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   private buildStorageKey(originalName: string): string {
     const safeName = originalName.replace(/[^a-zA-Z0-9._-]/g, '_');
     return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${safeName}`;

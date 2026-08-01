@@ -5,6 +5,7 @@ import RequireAdmin from "../components/auth/RequireAdmin"
 import RequireAuth from "../components/auth/RequireAuth"
 import RequireContentManager from "../components/auth/RequireContentManager"
 import Home from "../pages/Home"
+import DashboardPage from "../pages/DashboardPage"
 import Login from "../pages/Login"
 import UsersAdminPage from "../pages/admin/UsersAdminPage"
 import TiersAdminPage from "../pages/admin/TiersAdminPage"
@@ -31,8 +32,16 @@ const router = createBrowserRouter([
         element: <RequireAuth />,
         children: [
           {
+            path: "profile",
+            element: <ProfilePage />,
+          },
+          {
             element: <RequireAdmin />,
             children: [
+              {
+                path: "dashboard",
+                element: <DashboardPage />,
+              },
               {
                 path: "users",
                 element: <UsersAdminPage />,
@@ -57,10 +66,6 @@ const router = createBrowserRouter([
               {
                 path: "posts/:id/edit",
                 element: <EditPostPage />,
-              },
-              {
-                path: "profile",
-                element: <ProfilePage />,
               },
             ],
           },

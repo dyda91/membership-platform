@@ -1,18 +1,10 @@
 import { PostStatus } from '@prisma/client';
-import {
-  IsEnum,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-  MaxLength,
-} from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class UpdatePostDto {
   @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  @MaxLength(200)
-  title?: string;
+  title?: string | null;
 
   @IsOptional()
   @IsString()
@@ -26,8 +18,4 @@ export class UpdatePostDto {
   @IsOptional()
   @IsString()
   tierId?: string | null;
-
-  @IsOptional()
-  @IsString()
-  coverMediaId?: string | null;
 }

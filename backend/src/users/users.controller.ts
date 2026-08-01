@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  NotFoundException,
   Param,
   ParseEnumPipe,
   Patch,
@@ -11,9 +12,12 @@ import {
 } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { UsersService } from './users.service';
+import type { UserActor } from './users.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { CurrentUser } from '../auth/current-user.decorator';
+import type { AuthenticatedUser } from '../auth/jwt.strategy';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { AssignRoleDto } from './dto/assign-role.dto';
@@ -37,45 +41,87 @@ export class UsersController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.usersService.findOne(id);
+  async findOne(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
+    const result = await this.usersService.findOne(id, this.toActor(user));
+
+    if (!result) {
+      throw new NotFoundException('User not found');
+    }
+
+    return result;
   }
 
   @Get(':id/profile')
-  getProfile(@Param('id') id: string) {
-    return this.usersService.getProfile(id);
+  getProfile(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.usersService.getProfile(id, this.toActor(user));
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.usersService.update(id, updateUserDto);
+  update(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() updateUserDto: UpdateUserDto,
+  ) {
+    return this.usersService.update(id, updateUserDto, this.toActor(user));
   }
 
   @Post(':id/roles')
-  assignRole(@Param('id') id: string, @Body() assignRoleDto: AssignRoleDto) {
-    return this.usersService.assignRole(id, assignRoleDto.role);
+  assignRole(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() assignRoleDto: AssignRoleDto,
+  ) {
+    return this.usersService.assignRole(
+      id,
+      assignRoleDto.role,
+      this.toActor(user),
+    );
   }
 
   @Delete(':id/roles/:role')
   removeRole(
+    @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
     @Param('role', new ParseEnumPipe(Role)) role: Role,
   ) {
-    return this.usersService.removeRole(id, role);
+    return this.usersService.removeRole(id, role, this.toActor(user));
   }
 
   @Patch(':id/status')
-  setStatus(@Param('id') id: string, @Body() updateStatusDto: UpdateStatusDto) {
-    return this.usersService.setStatus(id, updateStatusDto.status);
+  setStatus(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() updateStatusDto: UpdateStatusDto,
+  ) {
+    return this.usersService.setStatus(
+      id,
+      updateStatusDto.status,
+      this.toActor(user),
+    );
   }
 
   @Patch(':id/tier')
-  assignTier(@Param('id') id: string, @Body() assignTierDto: AssignTierDto) {
-    return this.usersService.assignTier(id, assignTierDto.tierId ?? null);
+  assignTier(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() assignTierDto: AssignTierDto,
+  ) {
+    return this.usersService.assignTier(
+      id,
+      assignTierDto.tierId ?? null,
+      this.toActor(user),
+    );
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.usersService.remove(id);
+  remove(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.usersService.remove(id, this.toActor(user));
+  }
+
+  private toActor(user: AuthenticatedUser): UserActor {
+    return { id: user.id, roles: user.roles };
   }
 }

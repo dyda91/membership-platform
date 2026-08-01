@@ -12,13 +12,12 @@ export interface PostAuthor {
 
 export interface Post {
   id: string
-  title: string
+  title: string | null
   content: string
   status: PostStatus
   authorId: string
   tierId: string | null
   tier: Tier | null
-  coverMedia: Media | null
   media: Media[]
   author: PostAuthor
   createdAt: string
@@ -26,19 +25,17 @@ export interface Post {
 }
 
 export interface CreatePostData {
-  title: string
+  title?: string
   content: string
   status?: PostStatus
   tierId?: string
-  coverMediaId?: string
 }
 
 export interface UpdatePostData {
-  title?: string
+  title?: string | null
   content?: string
   status?: PostStatus
   tierId?: string | null
-  coverMediaId?: string | null
 }
 
 export async function fetchPosts() {

@@ -12,6 +12,7 @@ import { TiersModule } from './tiers/tiers.module';
 import { PostsModule } from './posts/posts.module';
 import { MediaModule } from './media/media.module';
 import { ArtistsModule } from './artists/artists.module';
+import { FeedModule } from './feed/feed.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { ArtistsModule } from './artists/artists.module';
     PostsModule,
     MediaModule,
     ArtistsModule,
+    FeedModule,
   ],
   controllers: [AppController],
   providers: [AppService],

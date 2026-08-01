@@ -1,9 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import {
   BadRequestException,
+  ForbiddenException,
   NotFoundException,
   UnsupportedMediaTypeException,
 } from '@nestjs/common';
+import { Role } from '@prisma/client';
 import { MediaService } from './media.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
@@ -43,6 +45,7 @@ describe('MediaService', () => {
       findUnique: jest.Mock;
       update: jest.Mock;
       delete: jest.Mock;
+      count: jest.Mock;
     };
     post: { findUnique: jest.Mock };
   };
@@ -50,6 +53,7 @@ describe('MediaService', () => {
     upload: jest.Mock;
     remove: jest.Mock;
     getUrl: jest.Mock;
+    getObject: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -60,6 +64,7 @@ describe('MediaService', () => {
         findUnique: jest.fn(),
         update: jest.fn(),
         delete: jest.fn(),
+        count: jest.fn(),
       },
       post: { findUnique: jest.fn() },
     };
@@ -67,6 +72,7 @@ describe('MediaService', () => {
       upload: jest.fn(),
       remove: jest.fn(),
       getUrl: jest.fn(),
+      getObject: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -102,6 +108,7 @@ describe('MediaService', () => {
         height: undefined,
         duration: undefined,
         postId: null,
+        position: 0,
       };
 
       expect(storage.upload).toHaveBeenCalled();
@@ -149,6 +156,60 @@ describe('MediaService', () => {
       await expect(service.findOne('missing')).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  describe('getFile', () => {
+    it('should stream the object for an authorized viewer', async () => {
+      prisma.media.findUnique.mockResolvedValue(
+        makeMedia({ post: { tier: null } }),
+      );
+      storage.getObject = jest.fn().mockResolvedValue(Buffer.from('data'));
+
+      const result = await service.getFile('media-1', {
+        roles: [Role.SUBSCRIBER],
+        tierPriority: 1,
+      });
+
+      expect(result.buffer).toEqual(Buffer.from('data'));
+      expect(result.mimeType).toBe('image/jpeg');
+    });
+
+    it('should throw ForbiddenException for a visitor on premium media', async () => {
+      prisma.media.findUnique.mockResolvedValue(
+        makeMedia({ post: { tier: { priority: 2 } } }),
+      );
+
+      await expect(service.getFile('media-1', null)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('should throw ForbiddenException when the tier is insufficient', async () => {
+      prisma.media.findUnique.mockResolvedValue(
+        makeMedia({ post: { tier: { priority: 3 } } }),
+      );
+
+      await expect(
+        service.getFile('media-1', {
+          roles: [Role.SUBSCRIBER],
+          tierPriority: 1,
+        }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw NotFoundException when the object is missing', async () => {
+      prisma.media.findUnique.mockResolvedValue(
+        makeMedia({ post: { tier: null } }),
+      );
+      storage.getObject = jest.fn().mockResolvedValue(null);
+
+      await expect(
+        service.getFile('media-1', {
+          roles: [Role.SUBSCRIBER],
+          tierPriority: 1,
+        }),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 

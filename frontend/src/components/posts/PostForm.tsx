@@ -15,12 +15,8 @@ interface PostFormProps {
 }
 
 export default function PostForm({ post, onSaved, onCancel }: PostFormProps) {
-  const [title, setTitle] = useState(post?.title ?? "")
   const [content, setContent] = useState(post?.content ?? "")
   const [tierId, setTierId] = useState<string | null>(post?.tierId ?? null)
-  const [coverMediaId, setCoverMediaId] = useState<string | null>(
-    post?.coverMedia?.id ?? null,
-  )
   const [media, setMedia] = useState<Media[]>(post?.media ?? [])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -42,20 +38,16 @@ export default function PostForm({ post, onSaved, onCancel }: PostFormProps) {
 
       if (post) {
         const payload: UpdatePostData = {
-          title,
           content,
           status,
           tierId: tierId ?? undefined,
-          coverMediaId: coverMediaId ?? undefined,
         }
         saved = await updatePost(post.id, payload)
       } else {
         const payload: CreatePostData = {
-          title,
           content,
           status,
           tierId: tierId ?? undefined,
-          coverMediaId: coverMediaId ?? undefined,
         }
         saved = await createPost(payload)
       }
@@ -83,23 +75,6 @@ export default function PostForm({ post, onSaved, onCancel }: PostFormProps) {
     <form onSubmit={handleSubmit} className="space-y-6">
       <div>
         <label
-          htmlFor="title"
-          className="block text-sm font-medium text-gray-700"
-        >
-          Título
-        </label>
-        <input
-          id="title"
-          type="text"
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
-          required
-          className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
-        />
-      </div>
-
-      <div>
-        <label
           htmlFor="content"
           className="block text-sm font-medium text-gray-700"
         >
@@ -117,37 +92,9 @@ export default function PostForm({ post, onSaved, onCancel }: PostFormProps) {
 
       <div className="grid gap-4 sm:grid-cols-2">
         <TierSelector value={tierId} onChange={setTierId} />
-
-        <div>
-          <label
-            htmlFor="cover"
-            className="block text-sm font-medium text-gray-700"
-          >
-            Mídia de capa
-          </label>
-          <select
-            id="cover"
-            value={coverMediaId ?? ""}
-            onChange={(event) => setCoverMediaId(event.target.value || null)}
-            className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
-          >
-            <option value="">Nenhuma</option>
-            {media
-              .filter((item) => item.type === "IMAGE")
-              .map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.originalName}
-                </option>
-              ))}
-          </select>
-        </div>
       </div>
 
-      <MediaUploader
-        postId={post?.id}
-        media={media}
-        onChange={setMedia}
-      />
+      <MediaUploader postId={post?.id} media={media} onChange={setMedia} />
 
       {error && <p className="rounded bg-red-100 p-3 text-sm text-red-700">{error}</p>}
 

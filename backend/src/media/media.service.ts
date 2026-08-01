@@ -1,11 +1,14 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { validateUpload } from '../common/media-validation.util';
+import { canAccessContent } from '../common/content-access.util';
+import type { ContentViewer } from '../common/content-access.util';
 import type { UploadFile } from '../common/upload-file.type';
 
 @Injectable()
@@ -18,6 +21,8 @@ export class MediaService {
   async upload(file: UploadFile, postId?: string) {
     const validated = validateUpload(file);
 
+    let position = 0;
+
     if (postId) {
       const post = await this.prisma.post.findUnique({
         where: { id: postId },
@@ -26,6 +31,9 @@ export class MediaService {
       if (!post) {
         throw new BadRequestException('Post not found');
       }
+
+      const count = await this.prisma.media.count({ where: { postId } });
+      position = count;
     }
 
     const { storageKey } = await this.storage.upload(file);
@@ -42,6 +50,7 @@ export class MediaService {
         height: validated.height,
         duration: validated.duration,
         postId: postId ?? null,
+        position,
       },
     });
 
@@ -71,10 +80,44 @@ export class MediaService {
     return { ...media, url: await this.storage.getUrl(media.storageKey) };
   }
 
+  /**
+   * Returns a streamable representation of the media object when the viewer
+   * has access, otherwise throws ForbiddenException. The URL is never exposed
+   * here; the response streams the raw object with its stored content type.
+   */
+  async getFile(id: string, viewer: ContentViewer | null) {
+    const media = await this.prisma.media.findUnique({
+      where: { id },
+      include: { post: { include: { tier: true } } },
+    });
+
+    if (!media) {
+      throw new NotFoundException('Media not found');
+    }
+
+    const access = canAccessContent(viewer, media.post?.tier ?? null);
+
+    if (!access.allowed) {
+      throw new ForbiddenException('Insufficient tier access');
+    }
+
+    const data = await this.storage.getObject(media.storageKey);
+
+    if (!data) {
+      throw new NotFoundException('Media object not found');
+    }
+
+    return {
+      buffer: data,
+      mimeType: media.mimeType,
+      filename: media.originalName,
+    };
+  }
+
   async findByPost(postId: string) {
     const media = await this.prisma.media.findMany({
       where: { postId },
-      orderBy: { createdAt: 'asc' },
+      orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
     });
 
     return Promise.all(
@@ -102,9 +145,11 @@ export class MediaService {
       throw new NotFoundException('Media not found');
     }
 
+    const count = await this.prisma.media.count({ where: { postId } });
+
     return this.prisma.media.update({
       where: { id: mediaId },
-      data: { postId },
+      data: { postId, position: count },
     });
   }
 

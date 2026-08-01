@@ -7,6 +7,7 @@ import { AuthService } from './auth.service';
 import { PasswordService } from './password.service';
 import { JwtStrategy } from './jwt.strategy';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { OptionalJwtAuthGuard } from './optional-jwt-auth.guard';
 import { RolesGuard } from './roles.guard';
 import { UsersModule } from '../users/users.module';
 
@@ -32,8 +33,9 @@ import { UsersModule } from '../users/users.module';
     PasswordService,
     JwtStrategy,
     JwtAuthGuard,
+    OptionalJwtAuthGuard,
     RolesGuard,
   ],
-  exports: [JwtAuthGuard, RolesGuard],
+  exports: [JwtAuthGuard, OptionalJwtAuthGuard, RolesGuard],
 })
 export class AuthModule {}

@@ -1,12 +1,14 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { AccountStatus, Role, User } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateOwnProfileDto } from './dto/update-own-profile.dto';
 
 export interface SafeUserTier {
   id: string;
@@ -26,6 +28,11 @@ export interface SafeUser {
   updatedAt: Date;
 }
 
+export interface UserActor {
+  id: string;
+  roles: Role[];
+}
+
 interface CreateUserData {
   email: string;
   passwordHash: string;
@@ -42,6 +49,8 @@ const userInclude = {
   roles: true,
   tier: true,
 } as const;
+
+const HIDDEN_ROLE = Role.SUPER_ADMIN;
 
 @Injectable()
 export class UsersService {
@@ -65,24 +74,31 @@ export class UsersService {
 
   async findAll() {
     const users = await this.prisma.user.findMany({
+      where: {
+        roles: { none: { role: HIDDEN_ROLE } },
+      },
       include: userInclude,
       orderBy: { createdAt: 'asc' },
     });
 
-    return users
-      .filter((user) =>
-        user.roles.every((item) => item.role !== Role.SUPER_ADMIN),
-      )
-      .map((user) => this.sanitize(user));
+    return users.map((user) => this.sanitize(user));
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, actor?: UserActor) {
     const user = await this.prisma.user.findUnique({
       where: { id },
       include: userInclude,
     });
 
-    return user ? this.sanitize(user) : null;
+    if (!user) {
+      return null;
+    }
+
+    if (this.isHidden(user) && !this.isSuperAdmin(actor)) {
+      return null;
+    }
+
+    return this.sanitize(user);
   }
 
   findByEmail(email: string) {
@@ -92,24 +108,52 @@ export class UsersService {
     });
   }
 
-  async getProfile(id: string) {
-    const user = await this.getUserOrThrow(id);
+  async getProfile(id: string, actor?: UserActor) {
+    const user = await this.getUserOrThrow(id, actor);
 
     return user;
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto) {
-    const user = await this.prisma.user.update({
+  async update(id: string, updateUserDto: UpdateUserDto, actor?: UserActor) {
+    const user = await this.getUserOrThrow(id, actor);
+
+    this.assertCanModify(actor, user);
+
+    const updated = await this.prisma.user.update({
       where: { id },
       data: updateUserDto,
       include: userInclude,
     });
 
-    return this.sanitize(user);
+    return this.sanitize(updated);
   }
 
-  async assignRole(id: string, role: Role) {
-    await this.getUserOrThrow(id);
+  async updateOwnProfile(id: string, dto: UpdateOwnProfileDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      include: userInclude,
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const updated = await this.prisma.user.update({
+      where: { id },
+      data: {
+        name: dto.name,
+      },
+      include: userInclude,
+    });
+
+    return this.sanitize(updated);
+  }
+
+  async assignRole(id: string, role: Role, actor?: UserActor) {
+    const user = await this.getUserOrThrow(id, actor);
+
+    this.assertCanModify(actor, user);
+    this.assertCanAssignRole(actor, role);
 
     await this.prisma.userRole.upsert({
       where: { userId_role: { userId: id, role } },
@@ -117,11 +161,13 @@ export class UsersService {
       update: {},
     });
 
-    return this.findOne(id);
+    return this.findOne(id, actor);
   }
 
-  async removeRole(id: string, role: Role) {
-    await this.getUserOrThrow(id);
+  async removeRole(id: string, role: Role, actor?: UserActor) {
+    const user = await this.getUserOrThrow(id, actor);
+
+    this.assertCanModify(actor, user);
 
     try {
       await this.prisma.userRole.delete({
@@ -131,21 +177,27 @@ export class UsersService {
       throw new ConflictException('Role is not assigned to this user');
     }
 
-    return this.findOne(id);
+    return this.findOne(id, actor);
   }
 
-  async setStatus(id: string, status: AccountStatus) {
-    const user = await this.prisma.user.update({
+  async setStatus(id: string, status: AccountStatus, actor?: UserActor) {
+    const user = await this.getUserOrThrow(id, actor);
+
+    this.assertCanModify(actor, user);
+
+    const updated = await this.prisma.user.update({
       where: { id },
       data: { status },
       include: userInclude,
     });
 
-    return this.sanitize(user);
+    return this.sanitize(updated);
   }
 
-  async assignTier(id: string, tierId: string | null) {
-    await this.getUserOrThrow(id);
+  async assignTier(id: string, tierId: string | null, actor?: UserActor) {
+    const user = await this.getUserOrThrow(id, actor);
+
+    this.assertCanModify(actor, user);
 
     if (tierId !== null) {
       const tier = await this.prisma.tier.findUnique({
@@ -157,32 +209,78 @@ export class UsersService {
       }
     }
 
-    const user = await this.prisma.user.update({
+    const updated = await this.prisma.user.update({
       where: { id },
       data: { tierId },
       include: userInclude,
     });
 
-    return this.sanitize(user);
+    return this.sanitize(updated);
   }
 
-  async remove(id: string) {
-    const user = await this.prisma.user.delete({
+  async remove(id: string, actor?: UserActor) {
+    const user = await this.getUserOrThrow(id, actor);
+
+    this.assertCanModify(actor, user);
+
+    const deleted = await this.prisma.user.delete({
       where: { id },
       include: userInclude,
     });
 
-    return this.sanitize(user);
+    return this.sanitize(deleted);
   }
 
-  private async getUserOrThrow(id: string): Promise<SafeUser> {
-    const user = await this.findOne(id);
+  private async getUserOrThrow(
+    id: string,
+    actor?: UserActor,
+  ): Promise<SafeUser> {
+    const user = await this.findOne(id, actor);
 
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
     return user;
+  }
+
+  private isHidden(user: UserWithRelations): boolean {
+    return user.roles.some((item) => item.role === HIDDEN_ROLE);
+  }
+
+  private isSuperAdmin(actor?: UserActor): boolean {
+    return actor?.roles.includes(Role.SUPER_ADMIN) ?? false;
+  }
+
+  private assertCanModify(actor: UserActor | undefined, user: SafeUser) {
+    if (!actor) {
+      throw new ForbiddenException('Actor required');
+    }
+
+    const targetIsHidden = user.roles.includes(HIDDEN_ROLE);
+
+    if (targetIsHidden && !this.isSuperAdmin(actor)) {
+      throw new NotFoundException('User not found');
+    }
+  }
+
+  private assertCanAssignRole(actor: UserActor | undefined, role: Role) {
+    if (!actor) {
+      throw new ForbiddenException('Actor required');
+    }
+
+    const isSuperAdmin = this.isSuperAdmin(actor);
+    const privilegedRoles: Role[] = [Role.SUPER_ADMIN, Role.ARTIST];
+
+    if (privilegedRoles.includes(role) && !isSuperAdmin) {
+      throw new ForbiddenException(
+        'Only SUPER_ADMIN can assign privileged roles',
+      );
+    }
+
+    if (role === Role.SUPER_ADMIN) {
+      throw new ForbiddenException('SUPER_ADMIN role cannot be assigned');
+    }
   }
 
   private sanitize(user: UserWithRelations): SafeUser {

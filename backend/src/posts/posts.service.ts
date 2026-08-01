@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PostStatus, Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 
@@ -17,17 +18,20 @@ export interface PostActor {
 const postInclude = {
   author: { select: { id: true, email: true, name: true } },
   tier: true,
-  coverMedia: true,
-  media: { orderBy: { createdAt: 'asc' as const } },
+  media: {
+    orderBy: [{ position: 'asc' as const }, { createdAt: 'asc' as const }],
+  },
 };
 
 @Injectable()
 export class PostsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService,
+  ) {}
 
   async create(actor: PostActor, dto: CreatePostDto) {
     await this.validateTier(dto.tierId);
-    await this.validateCoverMedia(dto.coverMediaId);
 
     const post = await this.prisma.post.create({
       data: {
@@ -35,13 +39,12 @@ export class PostsService {
         content: dto.content,
         status: dto.status ?? PostStatus.DRAFT,
         tierId: dto.tierId ?? null,
-        coverMediaId: dto.coverMediaId ?? null,
         authorId: actor.id,
       },
       include: postInclude,
     });
 
-    return post;
+    return this.withMediaUrls(post);
   }
 
   async findAll(actor: PostActor) {
@@ -53,7 +56,7 @@ export class PostsService {
       orderBy: { createdAt: 'desc' },
     });
 
-    return posts;
+    return Promise.all(posts.map((post) => this.withMediaUrls(post)));
   }
 
   async findOne(actor: PostActor, id: string) {
@@ -68,7 +71,7 @@ export class PostsService {
 
     this.assertCanAccess(actor, post.authorId);
 
-    return post;
+    return this.withMediaUrls(post);
   }
 
   async update(actor: PostActor, id: string, dto: UpdatePostDto) {
@@ -78,26 +81,28 @@ export class PostsService {
       await this.validateTier(dto.tierId);
     }
 
-    if (dto.coverMediaId !== undefined) {
-      await this.validateCoverMedia(dto.coverMediaId);
-    }
-
-    return this.prisma.post.update({
+    const updated = await this.prisma.post.update({
       where: { id },
       data: {
         title: dto.title,
         content: dto.content,
         tierId: dto.tierId,
-        coverMediaId: dto.coverMediaId,
       },
       include: postInclude,
     });
+
+    return this.withMediaUrls(updated);
   }
 
   async remove(actor: PostActor, id: string) {
     await this.getOwnedPost(actor, id);
 
-    return this.prisma.post.delete({ where: { id }, include: postInclude });
+    const deleted = await this.prisma.post.delete({
+      where: { id },
+      include: postInclude,
+    });
+
+    return this.withMediaUrls(deleted);
   }
 
   async publish(actor: PostActor, id: string) {
@@ -113,21 +118,41 @@ export class PostsService {
       }
     }
 
-    return this.prisma.post.update({
+    const updated = await this.prisma.post.update({
       where: { id },
       data: { status: PostStatus.PUBLISHED },
       include: postInclude,
     });
+
+    return this.withMediaUrls(updated);
   }
 
   async archive(actor: PostActor, id: string) {
     await this.getOwnedPost(actor, id);
 
-    return this.prisma.post.update({
+    const updated = await this.prisma.post.update({
       where: { id },
       data: { status: PostStatus.ARCHIVED },
       include: postInclude,
     });
+
+    return this.withMediaUrls(updated);
+  }
+
+  private async withMediaUrls<T extends { media: { storageKey: string }[] }>(
+    post: T,
+  ) {
+    const media = await Promise.all(
+      post.media.map(async (item) => {
+        try {
+          return { ...item, url: await this.storage.getUrl(item.storageKey) };
+        } catch {
+          return item;
+        }
+      }),
+    );
+
+    return { ...post, media };
   }
 
   private async getOwnedPost(actor: PostActor, id: string) {
@@ -164,20 +189,6 @@ export class PostsService {
 
     if (!tier) {
       throw new BadRequestException('Tier not found');
-    }
-  }
-
-  private async validateCoverMedia(mediaId: string | null | undefined) {
-    if (!mediaId) {
-      return;
-    }
-
-    const media = await this.prisma.media.findUnique({
-      where: { id: mediaId },
-    });
-
-    if (!media) {
-      throw new BadRequestException('Cover media not found');
     }
   }
 }

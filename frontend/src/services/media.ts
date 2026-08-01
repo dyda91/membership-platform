@@ -5,6 +5,7 @@ export type MediaType = "IMAGE" | "VIDEO"
 export interface Media {
   id: string
   postId: string | null
+  position: number
   storageKey: string
   filename: string
   originalName: string

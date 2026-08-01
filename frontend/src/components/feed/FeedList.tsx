@@ -1,0 +1,24 @@
+import type { FeedPost } from "../../services/feed"
+import FeedPostCard from "./FeedPostCard"
+
+interface FeedListProps {
+  posts: FeedPost[]
+}
+
+export default function FeedList({ posts }: FeedListProps) {
+  if (posts.length === 0) {
+    return (
+      <p className="text-gray-600">
+        Nenhum post publicado ainda.
+      </p>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {posts.map((post) => (
+        <FeedPostCard key={post.id} post={post} />
+      ))}
+    </div>
+  )
+}

@@ -1,5 +1,6 @@
 import { Link, Outlet } from "react-router-dom"
 import { useAuth } from "../../contexts/AuthContext"
+import TierBadge from "../auth/TierBadge"
 
 export default function MainLayout() {
   const { isAuthenticated, isAdmin, canManageContent, user, logout } = useAuth()
@@ -18,8 +19,17 @@ export default function MainLayout() {
                 to="/"
                 className="text-sm font-medium text-gray-700 hover:text-black"
               >
-                Dashboard
+                Feed
               </Link>
+
+              {canManageContent && (
+                <Link
+                  to="/dashboard"
+                  className="text-sm font-medium text-gray-700 hover:text-black"
+                >
+                  Dashboard
+                </Link>
+              )}
 
               {canManageContent && (
                 <Link
@@ -27,15 +37,6 @@ export default function MainLayout() {
                   className="text-sm font-medium text-gray-700 hover:text-black"
                 >
                   Posts
-                </Link>
-              )}
-
-              {canManageContent && (
-                <Link
-                  to="/profile"
-                  className="text-sm font-medium text-gray-700 hover:text-black"
-                >
-                  Perfil
                 </Link>
               )}
 
@@ -56,6 +57,15 @@ export default function MainLayout() {
                   Tiers
                 </Link>
               )}
+
+              {isAuthenticated && (
+                <Link
+                  to="/profile"
+                  className="text-sm font-medium text-gray-700 hover:text-black"
+                >
+                  Perfil
+                </Link>
+              )}
             </nav>
 
             {isAuthenticated ? (
@@ -63,6 +73,7 @@ export default function MainLayout() {
                 <span className="text-sm text-gray-600">
                   {user?.email}
                 </span>
+                <TierBadge tier={user?.tier ?? null} />
                 <button
                   type="button"
                   onClick={logout}
