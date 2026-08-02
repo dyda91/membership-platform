@@ -2,18 +2,21 @@ import { render, screen } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 import LockedMedia from "./LockedMedia"
 
+const goldTier = { id: "t-gold", name: "Gold", priority: 5 }
+
 describe("LockedMedia", () => {
-  it("shows the tier requirement", () => {
-    render(<LockedMedia tierName="Gold" />)
+  it("shows the required tier in text", () => {
+    render(<LockedMedia requiredTier={goldTier} />)
 
     expect(screen.getByText("Conteúdo exclusivo")).toBeInTheDocument()
-    expect(screen.getByText(/Disponível para o tier Gold/)).toBeInTheDocument()
+    expect(screen.getByText(/Disponível para o tier/)).toBeInTheDocument()
+    expect(screen.getByText("Gold")).toBeInTheDocument()
   })
 
   it("renders contact actions when provided", () => {
     render(
       <LockedMedia
-        tierName="Gold"
+        requiredTier={goldTier}
         contactActions={[
           { type: "WHATSAPP", label: "Falar pelo WhatsApp", url: "https://wa.me/1" },
           { type: "DISCORD", label: "Discord", url: "https://discord.gg/1" },
@@ -26,7 +29,7 @@ describe("LockedMedia", () => {
   })
 
   it("shows a controlled message when no contact channel is configured", () => {
-    render(<LockedMedia tierName="Gold" contactActions={[]} />)
+    render(<LockedMedia requiredTier={goldTier} contactActions={[]} />)
 
     expect(
       screen.getByText(/Entre em contato para solicitar acesso/),
@@ -34,9 +37,23 @@ describe("LockedMedia", () => {
   })
 
   it("never renders a payment or plan-management screen", () => {
-    render(<LockedMedia tierName="Gold" />)
+    render(<LockedMedia requiredTier={goldTier} />)
 
     expect(screen.queryByText(/pagamento/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/meu plano/i)).not.toBeInTheDocument()
+  })
+
+  it("never exposes a protected media URL in the DOM", () => {
+    const { container } = render(
+      <LockedMedia
+        requiredTier={goldTier}
+        contactActions={[{ type: "WHATSAPP", label: "WhatsApp", url: "https://wa.me/1" }]}
+      />,
+    )
+
+    expect(container.innerHTML).not.toContain("presigned")
+    expect(container.querySelector("img")).not.toBeInTheDocument()
+    expect(container.querySelector("source")).not.toBeInTheDocument()
+    expect(container.querySelector("video")).not.toBeInTheDocument()
   })
 })

@@ -63,6 +63,33 @@ export interface FeedResponse {
   artist: FeedArtist
 }
 
+/**
+ * Stable fallback ratios used only when the backend does not provide
+ * dimensions, so the layout can reserve space and avoid layout shift.
+ */
+export const IMAGE_FALLBACK_RATIO = 4 / 3
+export const VIDEO_FALLBACK_RATIO = 16 / 9
+
+export function aspectRatioOf(
+  type: FeedMediaType,
+  width: number | null,
+  height: number | null,
+): number {
+  if (width && height && width > 0 && height > 0) {
+    return width / height
+  }
+
+  return type === "VIDEO" ? VIDEO_FALLBACK_RATIO : IMAGE_FALLBACK_RATIO
+}
+
+/**
+ * A media item is viewable only when it is authorized (not locked) and the
+ * backend supplied a usable URL. Locked items must never carry a URL.
+ */
+export function mediaAuthorized(item: FeedMedia): boolean {
+  return !item.locked && Boolean(item.url)
+}
+
 export async function fetchFeed(page = 1, limit = 20) {
   const response = await api.get<FeedResponse>("/feed", {
     params: { page, limit },

@@ -58,7 +58,7 @@ export default function PostCard({
 
       <PostMediaGallery
         media={toFeedMedia(post)}
-        tierName={post.tier?.name}
+        requiredTier={post.tier}
       />
 
       <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-foreground-muted">

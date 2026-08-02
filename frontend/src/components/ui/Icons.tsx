@@ -119,6 +119,14 @@ export function IconChevronRight() {
   )
 }
 
+export function IconChevronLeft() {
+  return (
+    <svg {...base()}>
+      <polyline points="15 18 9 12 15 6" />
+    </svg>
+  )
+}
+
 export function IconAlert() {
   return (
     <svg {...base()}>
