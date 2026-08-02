@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -16,11 +18,25 @@ import { FeedModule } from './feed/feed.module';
 import { ArtistProfileModule } from './artist-profile/artist-profile.module';
 import { TierAccessModule } from './tier-access/tier-access.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { MailModule } from './mail/mail.module';
+import { SecurityModule } from './security/security.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+    }),
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        throttlers: [
+          {
+            ttl: Number(config.get('THROTTLE_TTL_MS') ?? 60_000),
+            limit: Number(config.get('THROTTLE_LIMIT') ?? 100),
+          },
+        ],
+      }),
     }),
     PrismaModule,
     StorageModule,
@@ -35,8 +51,16 @@ import { DashboardModule } from './dashboard/dashboard.module';
     ArtistProfileModule,
     TierAccessModule,
     DashboardModule,
+    MailModule,
+    SecurityModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}

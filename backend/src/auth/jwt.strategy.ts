@@ -8,7 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 export interface JwtPayload {
   sub: string;
   email: string;
-  roles: string[];
+  sessionVersion: number;
 }
 
 export interface AuthenticatedUser {
@@ -42,6 +42,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
 
     if (!user || user.status === AccountStatus.DISABLED) {
+      throw new UnauthorizedException();
+    }
+
+    if (payload.sessionVersion !== user.sessionVersion) {
       throw new UnauthorizedException();
     }
 

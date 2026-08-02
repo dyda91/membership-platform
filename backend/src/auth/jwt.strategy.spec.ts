@@ -14,6 +14,7 @@ const makeUser = (overrides: Record<string, unknown> = {}) => ({
   tierId: null,
   tier: null,
   roles: [{ role: Role.SUBSCRIBER }],
+  sessionVersion: 0,
   ...overrides,
 });
 
@@ -43,7 +44,7 @@ describe('JwtStrategy', () => {
     const result = await strategy.validate({
       sub: 'uuid-1',
       email: 'u@t.com',
-      roles: [],
+      sessionVersion: 0,
     });
 
     expect(prisma.user.findUnique).toHaveBeenCalledWith({
@@ -61,17 +62,33 @@ describe('JwtStrategy', () => {
     const result = await strategy.validate({
       sub: 'uuid-1',
       email: 'u@t.com',
-      roles: ['SUBSCRIBER'],
+      sessionVersion: 0,
     });
 
     expect(result.roles).toEqual([Role.ARTIST]);
+  });
+
+  it('rejects a token with a stale sessionVersion', async () => {
+    prisma.user.findUnique.mockResolvedValue(makeUser({ sessionVersion: 2 }));
+
+    await expect(
+      strategy.validate({
+        sub: 'uuid-1',
+        email: 'u@t.com',
+        sessionVersion: 1,
+      }),
+    ).rejects.toThrow(UnauthorizedException);
   });
 
   it('rejects tokens whose account no longer exists', async () => {
     prisma.user.findUnique.mockResolvedValue(null);
 
     await expect(
-      strategy.validate({ sub: 'missing', email: 'x@t.com', roles: [] }),
+      strategy.validate({
+        sub: 'missing',
+        email: 'x@t.com',
+        sessionVersion: 0,
+      }),
     ).rejects.toThrow(UnauthorizedException);
   });
 
@@ -81,7 +98,7 @@ describe('JwtStrategy', () => {
     );
 
     await expect(
-      strategy.validate({ sub: 'uuid-1', email: 'u@t.com', roles: [] }),
+      strategy.validate({ sub: 'uuid-1', email: 'u@t.com', sessionVersion: 0 }),
     ).rejects.toThrow(UnauthorizedException);
   });
 
@@ -96,7 +113,7 @@ describe('JwtStrategy', () => {
     const result = await strategy.validate({
       sub: 'uuid-1',
       email: 'u@t.com',
-      roles: [],
+      sessionVersion: 0,
     });
 
     expect(result.tierPriority).toBe(5);

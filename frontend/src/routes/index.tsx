@@ -9,12 +9,15 @@ import Home from "../pages/Home"
 import DashboardPage from "../pages/DashboardPage"
 import Login from "../pages/Login"
 import RegisterPage from "../pages/RegisterPage"
+import ForgotPasswordPage from "../pages/auth/ForgotPasswordPage"
+import ResetPasswordPage from "../pages/auth/ResetPasswordPage"
 import UsersAdminPage from "../pages/admin/UsersAdminPage"
 import TiersAdminPage from "../pages/admin/TiersAdminPage"
 import PostsPage from "../pages/posts/PostsPage"
 import NewPostPage from "../pages/posts/NewPostPage"
 import EditPostPage from "../pages/posts/EditPostPage"
 import ProfilePage from "../pages/profile/ProfilePage"
+import AccountSecurityPage from "../pages/profile/AccountSecurityPage"
 import ArtistProfileEditPage from "../pages/artist/ArtistProfileEditPage"
 import ArtistAssignmentPage from "../pages/artist/ArtistAssignmentPage"
 import NotFound from "../pages/NotFound"
@@ -27,6 +30,14 @@ const router = createBrowserRouter([
   {
     path: "/register",
     element: <RegisterPage />,
+  },
+  {
+    path: "/forgot-password",
+    element: <ForgotPasswordPage />,
+  },
+  {
+    path: "/reset-password",
+    element: <ResetPasswordPage />,
   },
   {
     path: "/",
@@ -42,6 +53,10 @@ const router = createBrowserRouter([
           {
             path: "profile",
             element: <ProfilePage />,
+          },
+          {
+            path: "profile/security",
+            element: <AccountSecurityPage />,
           },
           {
             element: <RequireAdmin />,

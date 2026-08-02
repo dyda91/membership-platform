@@ -59,6 +59,44 @@ export async function fetchCurrentUser(): Promise<SessionUser> {
   return fetchCurrentSession()
 }
 
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<{ success: boolean }> {
+  const response = await api.post<{ success: boolean }>(
+    "/auth/change-password",
+    { currentPassword, newPassword },
+  )
+
+  return response.data
+}
+
+export async function logoutAll(): Promise<{ success: boolean }> {
+  const response = await api.post<{ success: boolean }>("/auth/logout-all")
+
+  return response.data
+}
+
+export async function forgotPassword(email: string): Promise<{ message: string }> {
+  const response = await api.post<{ message: string }>("/auth/forgot-password", {
+    email,
+  })
+
+  return response.data
+}
+
+export async function resetPassword(
+  token: string,
+  newPassword: string,
+): Promise<{ success: boolean }> {
+  const response = await api.post<{ success: boolean }>("/auth/reset-password", {
+    token,
+    newPassword,
+  })
+
+  return response.data
+}
+
 export function logout() {
   clearToken()
 }

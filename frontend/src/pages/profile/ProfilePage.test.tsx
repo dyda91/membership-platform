@@ -1,7 +1,18 @@
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import type { ReactNode } from "react"
 import ProfilePage from "./ProfilePage"
+
+vi.mock("react-router-dom", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-router-dom")>()
+  return {
+    ...actual,
+    Link: ({ to, children }: { to: string; children: ReactNode }) => (
+      <a href={to}>{children}</a>
+    ),
+  }
+})
 
 vi.mock("../../contexts/AuthContext", () => ({
   useAuth: () => mockAuth,

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import type { FormEvent } from "react"
+import { Link } from "react-router-dom"
 
 import { useAuth } from "../../contexts/AuthContext"
 import { fetchOwnProfile, updateOwnProfile } from "../../services/profile"
@@ -14,6 +15,7 @@ import Button from "../../components/ui/Button"
 import Alert from "../../components/ui/Alert"
 import Skeleton from "../../components/ui/Skeleton"
 import TierBadge from "../../components/auth/TierBadge"
+import { buttonClasses } from "../../components/ui/button-styles"
 
 interface ArtistProfileForm {
   name: string
@@ -106,13 +108,16 @@ export default function ProfilePage() {
     <PageContainer width="standard">
       <PageHeader title="Meu perfil" description="Edite as informações básicas do seu perfil." />
 
-      <div className="mb-4 flex items-center gap-2">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         <TierBadge
           tier={user?.tier ?? null}
           accessStatus={user?.tierAccessStatus}
           expiresAt={user?.tierExpiresAt}
           permanent={user?.tierPermanent}
         />
+        <Link to="/profile/security" className={buttonClasses("ghost", "sm")}>
+          Segurança da conta
+        </Link>
       </div>
 
       {error && (

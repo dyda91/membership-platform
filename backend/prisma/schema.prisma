@@ -27,6 +27,14 @@ enum TierAccessAction {
   MIGRATED
 }
 
+enum SecurityAction {
+  PASSWORD_CHANGED
+  PASSWORD_RESET_REQUESTED
+  PASSWORD_RESET_COMPLETED
+  LOGIN_TEMPORARILY_BLOCKED
+  LOGOUT_ALL_SESSIONS
+}
+
 model User {
   id           String        @id @default(uuid())
   email        String        @unique
@@ -37,8 +45,16 @@ model User {
   tierId       String?
   tier         Tier?         @relation(fields: [tierId], references: [id], onDelete: SetNull)
 
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  // Account security state. sessionVersion invalidates previously issued JWTs
+  // after password security events and "logout all sessions". Failed-login
+  // fields back temporary brute-force protection and are separate from status.
+  sessionVersion      Int       @default(0)
+  failedLoginAttempts Int       @default(0)
+  loginBlockedUntil   DateTime?
+  lastFailedLoginAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   artist          Artist?
   posts           Post[]
@@ -48,6 +64,35 @@ model User {
   tierAssignmentsUpdated TierAccessAssignment[] @relation("TierAccessUpdatedBy")
   tierAssignmentsRevoked TierAccessAssignment[] @relation("TierAccessRevokedBy")
   tierAccessActorEvents TierAccessEvent[] @relation("TierAccessActor")
+  passwordResetTokens  PasswordResetToken[]
+  securityAuditEvents  SecurityAuditEvent[]
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model SecurityAuditEvent {
+  id           String         @id @default(uuid())
+  userId       String
+  action       SecurityAction
+  metadataJson String?
+  createdAt    DateTime       @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
 }
 
 model UserRole {

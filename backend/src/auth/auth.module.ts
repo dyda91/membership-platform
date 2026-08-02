@@ -6,17 +6,23 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { BootstrapService } from './bootstrap.service';
 import { PasswordService } from './password.service';
+import { PasswordPolicyService } from './password-policy.service';
+import { PasswordResetService } from './password-reset.service';
 import { JwtStrategy } from './jwt.strategy';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { OptionalJwtAuthGuard } from './optional-jwt-auth.guard';
 import { RolesGuard } from './roles.guard';
 import { UsersModule } from '../users/users.module';
 import { TierAccessModule } from '../tier-access/tier-access.module';
+import { MailModule } from '../mail/mail.module';
+import { SecurityModule } from '../security/security.module';
 
 @Module({
   imports: [
     forwardRef(() => UsersModule),
     TierAccessModule,
+    MailModule,
+    SecurityModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -35,6 +41,8 @@ import { TierAccessModule } from '../tier-access/tier-access.module';
     AuthService,
     BootstrapService,
     PasswordService,
+    PasswordPolicyService,
+    PasswordResetService,
     JwtStrategy,
     JwtAuthGuard,
     OptionalJwtAuthGuard,

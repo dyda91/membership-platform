@@ -20,6 +20,7 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
+  const stateMessage = (location.state as { message?: string } | null)?.message
   const from = (location.state as { from?: string } | null)?.from ?? "/"
 
   async function handleSubmit(event: FormEvent) {
@@ -72,7 +73,9 @@ export default function Login() {
               />
             </Field>
 
-            {error && <Alert variant="error">{error}</Alert>}
+            {stateMessage && <Alert variant="info">{stateMessage}</Alert>}
+
+          {error && <Alert variant="error">{error}</Alert>}
 
             <Button
               type="submit"
