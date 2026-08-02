@@ -7,6 +7,14 @@ import {
   replaceArtist,
 } from "../../services/system-artist"
 import type { User } from "../../services/users"
+import PageContainer from "../../components/ui/PageContainer"
+import PageHeader from "../../components/ui/PageHeader"
+import Card from "../../components/ui/Card"
+import Button from "../../components/ui/Button"
+import Alert from "../../components/ui/Alert"
+import EmptyState from "../../components/ui/EmptyState"
+import ConfirmDialog from "../../components/ui/ConfirmDialog"
+import Skeleton from "../../components/ui/Skeleton"
 
 export default function ArtistAssignmentPage() {
   const [activeArtist, setActiveArtist] = useState<User | null>(null)
@@ -76,116 +84,107 @@ export default function ArtistAssignmentPage() {
   }
 
   if (loading) {
-    return <p className="text-gray-600">Carregando...</p>
+    return (
+      <PageContainer width="standard">
+        <Skeleton className="h-10 w-1/3" />
+        <Skeleton className="mt-6 h-40 w-full" />
+        <Skeleton className="mt-4 h-64 w-full" />
+      </PageContainer>
+    )
   }
 
   return (
-    <div>
-      <h2 className="text-3xl font-bold text-black">
-        Configuração da artista
-      </h2>
-
-      <p className="mt-2 text-gray-600">
-        Gerencie a única conta responsável pelo conteúdo da plataforma.
-      </p>
+    <PageContainer width="standard">
+      <PageHeader
+        title="Configuração da artista"
+        description="Gerencie a única conta responsável pelo conteúdo da plataforma."
+      />
 
       {error && (
-        <p className="mt-4 rounded bg-red-100 p-3 text-red-700">{error}</p>
+        <div className="mb-4">
+          <Alert variant="error">{error}</Alert>
+        </div>
       )}
 
-      <div className="mt-6 rounded-lg border border-gray-200 bg-white p-6 shadow">
-        <h3 className="text-lg font-semibold text-gray-900">
-          Artista ativa
-        </h3>
+      <Card className="p-6">
+        <h2 className="text-lg font-semibold text-foreground">Artista ativa</h2>
 
         {activeArtist ? (
-          <p className="mt-2 text-sm text-gray-700">
+          <p className="mt-2 text-sm text-foreground-muted">
             {activeArtist.email}
           </p>
         ) : (
-          <p className="mt-2 text-sm text-amber-700">
+          <p className="mt-2 text-sm text-warning-foreground">
             Nenhuma artista configurada ainda.
           </p>
         )}
-      </div>
+      </Card>
 
-      <div className="mt-6 rounded-lg border border-gray-200 bg-white p-6 shadow">
-        <h3 className="text-lg font-semibold text-gray-900">
+      <Card className="mt-6 p-6">
+        <h2 className="text-lg font-semibold text-foreground">
           Contas elegíveis
-        </h3>
+        </h2>
 
         {candidates.length === 0 ? (
-          <p className="mt-2 text-sm text-gray-600">
-            Nenhuma conta elegível disponível.
-          </p>
+          <EmptyState
+            className="mt-4 border-0"
+            title="Nenhuma conta elegível"
+            description="Nenhuma conta elegível disponível."
+          />
         ) : (
-          <ul className="mt-4 divide-y divide-gray-200">
+          <ul className="mt-4 divide-y divide-border">
             {candidates.map((user) => (
               <li
                 key={user.id}
-                className="flex items-center justify-between py-3"
+                className="flex items-center justify-between gap-4 py-3"
               >
-                <div>
-                  <p className="text-sm font-medium text-gray-900">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">
                     {user.name || user.email}
                   </p>
-                  <p className="text-xs text-gray-500">{user.email}</p>
+                  <p className="truncate text-xs text-foreground-muted">
+                    {user.email}
+                  </p>
                 </div>
 
-                <button
-                  type="button"
+                <Button
+                  variant={activeArtist ? "secondary" : "primary"}
+                  size="sm"
                   disabled={busy}
                   onClick={() =>
                     activeArtist
                       ? setConfirming(user)
                       : void handlePromote(user)
                   }
-                  className="rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
                 >
                   {activeArtist ? "Substituir" : "Promover"}
-                </button>
+                </Button>
               </li>
             ))}
           </ul>
         )}
-      </div>
+      </Card>
 
-      {confirming && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm rounded-lg bg-white p-6 shadow">
-            <h3 className="text-lg font-semibold text-gray-900">
-              Substituir artista
-            </h3>
-
-            <p className="mt-2 text-sm text-gray-600">
+      <ConfirmDialog
+        open={confirming !== null}
+        title="Substituir artista"
+        description={
+          confirming ? (
+            <>
               Tem certeza que deseja substituir a artista atual por{" "}
-              <span className="font-medium text-gray-900">
+              <span className="font-medium text-foreground">
                 {confirming.email}
               </span>
               ? A página pública e os posts serão preservados.
-            </p>
-
-            <div className="mt-6 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setConfirming(null)}
-                disabled={busy}
-                className="rounded bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-300"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleReplace()}
-                disabled={busy}
-                className="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
-              >
-                {busy ? "Substituindo..." : "Confirmar substituição"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+            </>
+          ) : undefined
+        }
+        confirmLabel={busy ? "Substituindo..." : "Confirmar substituição"}
+        variant="danger"
+        busy={busy}
+        onConfirm={() => void handleReplace()}
+        onCancel={() => setConfirming(null)}
+      />
+    </PageContainer>
   )
 }

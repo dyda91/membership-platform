@@ -1,3 +1,5 @@
+import Badge from "../ui/Badge"
+import { accessStatusVariant } from "../ui/status-labels"
 import type { UserTier } from "../../services/users"
 
 interface TierBadgeProps {
@@ -18,23 +20,27 @@ export default function TierBadge({
   permanent,
 }: TierBadgeProps) {
   if (!tier || accessStatus === "EXPIRED" || accessStatus === "REVOKED") {
+    const expired = accessStatus === "EXPIRED"
+
     return (
-      <span
-        className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-          accessStatus === "EXPIRED"
-            ? "bg-red-100 text-red-700"
-            : "bg-gray-200 text-gray-600"
-        }`}
-        title={accessStatus === "EXPIRED" ? "Acesso expirado" : undefined}
+      <Badge
+        variant={expired ? "danger" : "neutral"}
+        title={
+          expired
+            ? "Acesso expirado"
+            : accessStatus === "REVOKED"
+              ? "Acesso revogado"
+              : undefined
+        }
       >
-        {accessStatus === "EXPIRED" ? "Expirado" : "Gratuito"}
-      </span>
+        {expired ? "Expirado" : "Gratuito"}
+      </Badge>
     )
   }
 
   return (
-    <span
-      className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700"
+    <Badge
+      variant={accessStatusVariant(accessStatus ?? "ACTIVE")}
       title={
         permanent
           ? "Acesso permanente"
@@ -44,6 +50,6 @@ export default function TierBadge({
       }
     >
       {tier.name}
-    </span>
+    </Badge>
   )
 }

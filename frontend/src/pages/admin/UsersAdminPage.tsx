@@ -29,39 +29,25 @@ import type {
 import { fetchTiers } from "../../services/tiers"
 import type { Tier } from "../../services/tiers"
 import { useAuth } from "../../contexts/AuthContext"
+import PageContainer from "../../components/ui/PageContainer"
+import PageHeader from "../../components/ui/PageHeader"
+import Card from "../../components/ui/Card"
+import Field from "../../components/ui/Field"
+import Input from "../../components/ui/Input"
+import Select from "../../components/ui/Select"
+import Checkbox from "../../components/ui/Checkbox"
+import Button from "../../components/ui/Button"
+import Alert from "../../components/ui/Alert"
+import EmptyState from "../../components/ui/EmptyState"
+import Dialog from "../../components/ui/Dialog"
+import Badge from "../../components/ui/Badge"
+import {
+  AccessStatusBadge,
+  AccountStatusBadge,
+  RoleBadge,
+} from "../../components/ui/status-badges"
 
 const PAGE_SIZE = 10
-
-const ROLE_LABELS: Record<Role, string> = {
-  SUPER_ADMIN: "Super Admin",
-  ARTIST: "Artista",
-  SUBSCRIBER: "Assinante",
-}
-
-const STATUS_LABELS: Record<AccountStatus, string> = {
-  ACTIVE: "Ativo",
-  DISABLED: "Desativado",
-}
-
-const ACCESS_STATUS_LABELS: Record<string, string> = {
-  NONE: "Sem acesso",
-  SCHEDULED: "Agendado",
-  ACTIVE: "Ativo",
-  EXPIRING_SOON: "Expirando",
-  EXPIRED: "Expirado",
-  REVOKED: "Revogado",
-  PERMANENT: "Permanente",
-}
-
-const ACCESS_STATUS_STYLES: Record<string, string> = {
-  NONE: "bg-gray-100 text-gray-600",
-  SCHEDULED: "bg-blue-100 text-blue-700",
-  ACTIVE: "bg-green-100 text-green-700",
-  EXPIRING_SOON: "bg-amber-100 text-amber-700",
-  EXPIRED: "bg-red-100 text-red-700",
-  REVOKED: "bg-red-100 text-red-700",
-  PERMANENT: "bg-indigo-100 text-indigo-700",
-}
 
 function errorMessage(error: unknown) {
   const status = (error as AxiosError)?.response?.status
@@ -180,24 +166,24 @@ export default function UsersAdminPage() {
   }
 
   return (
-    <div>
-      <h2 className="text-3xl font-bold text-black">
-        Gerenciamento de Usuários
-      </h2>
-
-      <p className="mt-2 text-gray-600">
-        Localize membros, atribua tiers e gerencie o acesso.
-      </p>
+    <PageContainer width="wide">
+      <PageHeader
+        title="Gerenciamento de Usuários"
+        description="Localize membros, atribua tiers e gerencie o acesso."
+      />
 
       {error && (
-        <p className="mt-4 rounded bg-red-100 p-3 text-red-700">{error}</p>
+        <div className="mb-4">
+          <Alert variant="error">{error}</Alert>
+        </div>
       )}
 
-      <div className="mt-6 rounded-lg border border-gray-200 bg-white p-4 shadow">
+      <Card className="p-4">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
           <div className="sm:col-span-2">
-            <input
+            <Input
               type="search"
+              aria-label="Buscar por nome ou e-mail"
               placeholder="Buscar por nome ou e-mail"
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
@@ -206,18 +192,17 @@ export default function UsersAdminPage() {
                   applySearch()
                 }
               }}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
             />
           </div>
 
           <div>
-            <select
+            <Select
+              aria-label="Filtrar por tier"
               value={tierFilter}
               onChange={(event) => {
                 setTierFilter(event.target.value)
                 resetPageForFilter()
               }}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
             >
               <option value="">Todos os tiers</option>
               {tiers.map((tier) => (
@@ -225,32 +210,32 @@ export default function UsersAdminPage() {
                   {tier.name} (prioridade {tier.priority})
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
 
           <div>
-            <select
+            <Select
+              aria-label="Filtrar por status da conta"
               value={statusFilter}
               onChange={(event) => {
                 setStatusFilter(event.target.value)
                 resetPageForFilter()
               }}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
             >
               <option value="">Todos os status</option>
               <option value={ACCOUNT_STATUSES.ACTIVE}>Ativo</option>
               <option value={ACCOUNT_STATUSES.DISABLED}>Desativado</option>
-            </select>
+            </Select>
           </div>
 
           <div>
-            <select
+            <Select
+              aria-label="Filtrar por acesso"
               value={accessFilter}
               onChange={(event) => {
                 setAccessFilter(event.target.value)
                 resetPageForFilter()
               }}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
             >
               <option value="">Todos os acessos</option>
               <option value="ACTIVE">Ativo</option>
@@ -260,142 +245,131 @@ export default function UsersAdminPage() {
               <option value="SCHEDULED">Agendado</option>
               <option value="REVOKED">Revogado</option>
               <option value="NONE">Sem acesso</option>
-            </select>
+            </Select>
           </div>
 
           <div>
-            <select
+            <Select
+              aria-label="Filtrar por role"
               value={roleFilter}
               onChange={(event) => {
                 setRoleFilter(event.target.value)
                 resetPageForFilter()
               }}
               disabled={!isSuperAdmin}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none disabled:opacity-50"
             >
               <option value="">Todas as roles</option>
               <option value="SUBSCRIBER">Assinante</option>
               <option value="ARTIST">Artista</option>
-            </select>
+            </Select>
           </div>
         </div>
 
         <div className="mt-3 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={applySearch}
-            className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-          >
-            Buscar
-          </button>
-          <button
-            type="button"
-            onClick={clearFilters}
-            className="rounded bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-300"
-          >
+          <Button onClick={applySearch}>Buscar</Button>
+          <Button variant="outline" onClick={clearFilters}>
             Limpar busca e filtros
-          </button>
+          </Button>
         </div>
-      </div>
+      </Card>
 
       {tierError && (
-        <p className="mt-4 rounded bg-amber-100 p-3 text-amber-800">
-          {tierError}{" "}
-          <button
-            type="button"
-            onClick={() => void loadTiers()}
-            className="ml-2 font-medium text-amber-900 underline"
+        <div className="mt-4">
+          <Alert
+            variant="warning"
+            action={
+              <button
+                type="button"
+                onClick={() => void loadTiers()}
+                className="shrink-0 text-sm font-medium underline"
+              >
+                Tentar novamente
+              </button>
+            }
           >
-            Tentar novamente
-          </button>
-        </p>
+            {tierError}
+          </Alert>
+        </div>
       )}
 
-      <div className="mt-6 overflow-hidden rounded-lg border border-gray-200 bg-white shadow">
+      <div className="mt-6 overflow-hidden rounded-lg border border-border bg-surface shadow-card">
         {loading ? (
-          <p className="p-6 text-gray-600">Carregando usuários...</p>
+          <p className="p-6 text-sm text-foreground-muted">Carregando usuários...</p>
         ) : users.length === 0 ? (
-          <p className="p-6 text-gray-600">
-            Nenhum usuário encontrado com os critérios informados.
-          </p>
+          <EmptyState
+            className="m-4 border-0"
+            title="Nenhum usuário encontrado"
+            description="Ajuste a busca ou limpe os filtros para ver mais resultados."
+          />
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-border">
+              <thead className="bg-surface-muted">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-foreground-muted">
                     Usuário
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-foreground-muted">
                     Email
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-foreground-muted">
                     Role
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-foreground-muted">
                     Tier
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-foreground-muted">
                     Acesso
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-foreground-muted">
                     Status
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-foreground-muted">
                     Criado em
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wide text-gray-500">
+                  <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wide text-foreground-muted">
                     Ações
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-border">
                 {users.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                  <tr key={user.id} className="hover:bg-surface-muted">
+                    <td className="px-6 py-4 text-sm font-medium text-foreground">
                       {user.name || "—"}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
+                    <td className="px-6 py-4 text-sm text-foreground-muted">
                       {user.email}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {user.roles.map((role) => ROLE_LABELS[role]).join(", ") ||
-                        "—"}
+                    <td className="px-6 py-4 text-sm text-foreground-muted">
+                      <div className="flex flex-wrap gap-1.5">
+                        {user.roles.map((role) => (
+                          <RoleBadge key={role} role={role} />
+                        ))}
+                      </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
+                    <td className="px-6 py-4 text-sm text-foreground-muted">
                       {user.tierAccess?.tier?.name ?? user.tier?.name ?? "Gratuito"}
                     </td>
                     <td className="px-6 py-4 text-sm">
-                      <span
-                        className={`rounded-full px-2 py-1 text-xs font-medium ${
-                          ACCESS_STATUS_STYLES[user.tierAccess?.status ?? "NONE"]
-                        }`}
-                      >
-                        {ACCESS_STATUS_LABELS[user.tierAccess?.status ?? "NONE"]}
-                      </span>
+                      <AccessStatusBadge
+                        status={(user.tierAccess?.status ?? "NONE") as TierAccessStatus}
+                      />
                     </td>
                     <td className="px-6 py-4 text-sm">
-                      <span
-                        className={`rounded-full px-2 py-1 text-xs font-medium ${
-                          user.status === ACCOUNT_STATUSES.ACTIVE
-                            ? "bg-green-100 text-green-700"
-                            : "bg-red-100 text-red-700"
-                        }`}
-                      >
-                        {STATUS_LABELS[user.status]}
-                      </span>
+                      <AccountStatusBadge status={user.status} />
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
+                    <td className="px-6 py-4 text-sm text-foreground-muted">
                       {formatDate(user.createdAt)}
                     </td>
                     <td className="px-6 py-4 text-right text-sm">
-                      <button
-                        type="button"
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => setSelected(user)}
-                        className="rounded bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-200"
                       >
                         Gerenciar acesso
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -405,28 +379,28 @@ export default function UsersAdminPage() {
         )}
       </div>
 
-      <div className="mt-4 flex items-center justify-between">
-        <p className="text-sm text-gray-600">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-foreground-muted">
           Página {page} de {totalPages || 1} · {total} usuário(s)
         </p>
 
         <div className="flex gap-2">
-          <button
-            type="button"
+          <Button
+            variant="outline"
+            size="sm"
             disabled={page <= 1}
             onClick={() => setPage((current) => current - 1)}
-            className="rounded bg-gray-200 px-3 py-1 text-sm font-medium text-gray-700 hover:bg-gray-300 disabled:opacity-50"
           >
             Anterior
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             disabled={page >= totalPages || totalPages === 0}
             onClick={() => setPage((current) => current + 1)}
-            className="rounded bg-gray-200 px-3 py-1 text-sm font-medium text-gray-700 hover:bg-gray-300 disabled:opacity-50"
           >
             Próxima
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -442,7 +416,7 @@ export default function UsersAdminPage() {
           onUpdated={handleUpdated}
         />
       )}
-    </div>
+    </PageContainer>
   )
 }
 
@@ -682,322 +656,267 @@ function AccessDialog({
   const accessStatus: TierAccessStatus = access?.status ?? "NONE"
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/50 p-4">
-      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-6 shadow">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">
-            Gerenciar acesso
-          </h3>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded px-2 py-1 text-gray-500 hover:bg-gray-100"
-          >
-            ✕
-          </button>
+    <Dialog
+      open
+      onClose={onClose}
+      title="Gerenciar acesso"
+      description={user.email}
+      size="md"
+      footer={
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={onClose}>
+            Fechar
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-4">
+        <div>
+          <span className="block text-sm font-medium text-foreground">Role</span>
+          <div className="mt-1 flex flex-wrap gap-1.5">
+            {user.roles.map((role) => (
+              <RoleBadge key={role} role={role} />
+            ))}
+          </div>
+          <p className="mt-1 text-xs text-foreground-muted">
+            {isSuperAdmin
+              ? "Role atribuída. A atribuição de ARTIST/SUPER_ADMIN é separada e restrita."
+              : "Role somente leitura."}
+          </p>
         </div>
 
-        <p className="mt-1 text-sm text-gray-600">{user.email}</p>
-
-        <div className="mt-4 space-y-4">
-          <div>
-            <span className="block text-sm font-medium text-gray-700">
-              Role
+        <div className="rounded-md border border-border p-3">
+          <span className="block text-sm font-medium text-foreground">
+            Acesso atual
+          </span>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <span className="text-sm text-foreground">
+              {access?.tier?.name ?? "Gratuito"}
             </span>
-            <p className="mt-1 text-sm text-gray-900">
-              {user.roles.map((role) => ROLE_LABELS[role]).join(", ") || "—"}
-            </p>
-            <p className="mt-1 text-xs text-gray-500">
-              {isSuperAdmin
-                ? "Role atribuída. A atribuição de ARTIST/SUPER_ADMIN é separada e restrita."
-                : "Role somente leitura."}
-            </p>
-          </div>
-
-          <div className="rounded border border-gray-200 p-3">
-            <span className="block text-sm font-medium text-gray-700">
-              Acesso atual
-            </span>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <span className="text-sm text-gray-900">
-                {access?.tier?.name ?? "Gratuito"}
+            <AccessStatusBadge status={accessStatus} />
+            {access?.expiresAt && (
+              <span className="text-xs text-foreground-muted">
+                até {formatDate(access.expiresAt)}
               </span>
-              <span
-                className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                  ACCESS_STATUS_STYLES[accessStatus]
-                }`}
+            )}
+            {access?.permanent && (
+              <Badge variant="accent">Acesso permanente</Badge>
+            )}
+          </div>
+        </div>
+
+        <form onSubmit={handleGrant} className="space-y-3">
+          <Field id="tierId" label="Tier de acesso">
+            {loadingTiers ? (
+              <p className="text-sm text-foreground-muted">Carregando tiers...</p>
+            ) : tierError ? (
+              <div>
+                <p className="text-sm text-warning-foreground">{tierError}</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onRetryTiers}
+                  className="mt-1"
+                >
+                  Tentar novamente
+                </Button>
+              </div>
+            ) : (
+              <Select
+                id="tierId"
+                data-testid="tier-select"
+                value={tierId}
+                onChange={(event) => setTierId(event.target.value)}
+                disabled={busy}
               >
-                {ACCESS_STATUS_LABELS[accessStatus]}
-              </span>
-              {access?.expiresAt && (
-                <span className="text-xs text-gray-500">
-                  até {formatDate(access.expiresAt)}
-                </span>
-              )}
-              {access?.permanent && (
-                <span className="text-xs text-indigo-600">
-                  Acesso permanente
-                </span>
-              )}
-            </div>
-          </div>
+                <option value="">Gratuito (sem tier)</option>
+                {tiers.map((tier) => (
+                  <option key={tier.id} value={tier.id}>
+                    {tier.name} · prioridade {tier.priority}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
 
-          <form onSubmit={handleGrant} className="space-y-3">
-            <div>
-              <span className="block text-sm font-medium text-gray-700">
-                Tier de acesso
-              </span>
-              {loadingTiers ? (
-                <p className="mt-1 text-sm text-gray-500">Carregando tiers...</p>
-              ) : tierError ? (
-                <div className="mt-1">
-                  <p className="text-sm text-amber-700">{tierError}</p>
-                  <button
-                    type="button"
-                    onClick={onRetryTiers}
-                    className="mt-1 rounded bg-gray-200 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-300"
-                  >
-                    Tentar novamente
-                  </button>
-                </div>
-              ) : (
-                <select
-                  data-testid="tier-select"
-                  value={tierId}
-                  onChange={(event) => setTierId(event.target.value)}
-                  disabled={busy}
-                  className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
-                >
-                  <option value="">Gratuito (sem tier)</option>
-                  {tiers.map((tier) => (
-                    <option key={tier.id} value={tier.id}>
-                      {tier.name} · prioridade {tier.priority}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label
-                  htmlFor="startsAt"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Início
-                </label>
-                <input
-                  id="startsAt"
-                  type="date"
-                  value={startsAt}
-                  onChange={(event) => setStartsAt(event.target.value)}
-                  disabled={busy}
-                  className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="expiresAt"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Expiração
-                </label>
-                <input
-                  id="expiresAt"
-                  type="date"
-                  value={expiresAt}
-                  onChange={(event) => setExpiresAt(event.target.value)}
-                  disabled={busy || permanent}
-                  className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none disabled:opacity-50"
-                />
-              </div>
-            </div>
-
-            <label className="flex items-center gap-2 text-sm text-gray-700">
-              <input
-                type="checkbox"
-                checked={permanent}
-                onChange={(event) => setPermanent(event.target.checked)}
+          <div className="grid grid-cols-2 gap-3">
+            <Field id="startsAt" label="Início">
+              <Input
+                id="startsAt"
+                type="date"
+                value={startsAt}
+                onChange={(event) => setStartsAt(event.target.value)}
                 disabled={busy}
               />
-              Acesso permanente
-            </label>
-
-            <div>
-              <label
-                htmlFor="internalNote"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Observação interna
-              </label>
-              <input
-                id="internalNote"
-                type="text"
-                value={internalNote}
-                onChange={(event) => setInternalNote(event.target.value)}
-                placeholder="Ex.: pagamento confirmado via WhatsApp"
-                className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
+            </Field>
+            <Field id="expiresAt" label="Expiração">
+              <Input
+                id="expiresAt"
+                type="date"
+                value={expiresAt}
+                onChange={(event) => setExpiresAt(event.target.value)}
+                disabled={busy || permanent}
               />
-            </div>
+            </Field>
+          </div>
 
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="submit"
-                disabled={busy || loadingTiers}
-                className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-              >
-                {busy ? "Salvando..." : "Conceder / salvar"}
-              </button>
-              {access && accessStatus !== "NONE" && accessStatus !== "REVOKED" && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => void handleRenew()}
-                    disabled={busy}
-                    className="rounded bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
-                  >
-                    Renovar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setConfirmRevoke(true)}
-                    disabled={busy}
-                    className="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
-                  >
-                    Revogar
-                  </button>
-                </>
-              )}
-              {access && accessStatus !== "NONE" && (
-                <button
-                  type="button"
-                  onClick={() => void handleSaveChanges()}
-                  disabled={busy}
-                  className="rounded bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50"
-                >
-                  Salvar alterações
-                </button>
-              )}
-            </div>
+          <Checkbox
+            id="permanent"
+            label="Acesso permanente"
+            checked={permanent}
+            onChange={(event) => setPermanent(event.target.checked)}
+            disabled={busy}
+          />
 
-            {accessStatus !== "NONE" && accessStatus !== "REVOKED" && (
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label
-                    htmlFor="renewExpiresAt"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    Nova expiração (renovar)
-                  </label>
-                  <input
-                    id="renewExpiresAt"
-                    type="date"
-                    value={renewExpiresAt}
-                    onChange={(event) => setRenewExpiresAt(event.target.value)}
-                    className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-            )}
-          </form>
+          <Field id="internalNote" label="Observação interna">
+            <Input
+              id="internalNote"
+              type="text"
+              value={internalNote}
+              onChange={(event) => setInternalNote(event.target.value)}
+              placeholder="Ex.: pagamento confirmado via WhatsApp"
+            />
+          </Field>
 
-          {confirmRevoke && (
-            <div className="rounded border border-red-200 bg-red-50 p-3">
-              <p className="text-sm font-medium text-red-800">
-                Confirmar revogação do acesso?
-              </p>
-              <input
-                type="text"
-                value={revokeNote}
-                onChange={(event) => setRevokeNote(event.target.value)}
-                placeholder="Motivo opcional"
-                className="mt-2 w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
-              />
-              <div className="mt-2 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => void handleRevoke()}
-                  disabled={busy}
-                  className="rounded bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
-                >
-                  Sim, revogar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConfirmRevoke(false)}
-                  className="rounded bg-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-300"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </div>
-          )}
-
-          {error && (
-            <p className="rounded bg-red-100 p-3 text-sm text-red-700">
-              {error}
-            </p>
-          )}
-
-          {success && (
-            <p className="rounded bg-green-100 p-3 text-sm text-green-700">
-              {success}
-            </p>
-          )}
-
-          <div>
-            <button
-              type="button"
-              onClick={() => void handleToggleHistory()}
-              className="rounded bg-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-300"
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="submit"
+              loading={busy}
+              disabled={loadingTiers}
             >
-              {showHistory ? "Ocultar histórico" : "Ver histórico de acesso"}
-            </button>
-
-            {showHistory && (
-              <div className="mt-3">
-                {loadingHistory ? (
-                  <p className="text-sm text-gray-500">Carregando histórico...</p>
-                ) : history && history.length > 0 ? (
-                  <ul className="divide-y divide-gray-200 rounded border border-gray-200">
-                    {history.map((event) => (
-                      <li key={event.id} className="p-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-gray-900">
-                            {ACTION_LABELS[event.action] ?? event.action}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            {formatDate(event.createdAt)}
-                          </span>
-                        </div>
-                        <div className="mt-1 text-xs text-gray-600">
-                          {event.newTier?.name ?? event.previousTier?.name ?? "—"}
-                          {event.newExpiresAt && (
-                            <span> · válido até {formatDate(event.newExpiresAt)}</span>
-                          )}
-                          {event.actor?.email && (
-                            <span> · por {event.actor.email}</span>
-                          )}
-                        </div>
-                        {event.internalNote && (
-                          <div className="mt-1 text-xs italic text-gray-500">
-                            Nota: {event.internalNote}
-                          </div>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-gray-500">
-                    Nenhum evento de acesso registrado.
-                  </p>
-                )}
-              </div>
+              {busy ? "Salvando..." : "Conceder / salvar"}
+            </Button>
+            {access && accessStatus !== "NONE" && accessStatus !== "REVOKED" && (
+              <>
+                <Button
+                  variant="success"
+                  onClick={() => void handleRenew()}
+                  disabled={busy}
+                >
+                  Renovar
+                </Button>
+                <Button
+                  variant="danger"
+                  onClick={() => setConfirmRevoke(true)}
+                  disabled={busy}
+                >
+                  Revogar
+                </Button>
+              </>
+            )}
+            {access && accessStatus !== "NONE" && (
+              <Button
+                variant="warning"
+                onClick={() => void handleSaveChanges()}
+                disabled={busy}
+              >
+                Salvar alterações
+              </Button>
             )}
           </div>
+
+          {accessStatus !== "NONE" && accessStatus !== "REVOKED" && (
+            <Field id="renewExpiresAt" label="Nova expiração (renovar)">
+              <Input
+                id="renewExpiresAt"
+                type="date"
+                value={renewExpiresAt}
+                onChange={(event) => setRenewExpiresAt(event.target.value)}
+              />
+            </Field>
+          )}
+        </form>
+
+        {confirmRevoke && (
+          <div className="rounded-md border border-danger/30 bg-danger-muted/40 p-3">
+            <p className="text-sm font-medium text-danger-foreground">
+              Confirmar revogação do acesso?
+            </p>
+            <Input
+              type="text"
+              value={revokeNote}
+              onChange={(event) => setRevokeNote(event.target.value)}
+              placeholder="Motivo opcional"
+              className="mt-2"
+            />
+            <div className="mt-2 flex gap-2">
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={() => void handleRevoke()}
+                loading={busy}
+              >
+                Sim, revogar
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setConfirmRevoke(false)}
+              >
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {error && <Alert variant="error">{error}</Alert>}
+
+        {success && <Alert variant="success">{success}</Alert>}
+
+        <div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void handleToggleHistory()}
+          >
+            {showHistory ? "Ocultar histórico" : "Ver histórico de acesso"}
+          </Button>
+
+          {showHistory && (
+            <div className="mt-3">
+              {loadingHistory ? (
+                <p className="text-sm text-foreground-muted">
+                  Carregando histórico...
+                </p>
+              ) : history && history.length > 0 ? (
+                <ul className="divide-y divide-border rounded-md border border-border">
+                  {history.map((event) => (
+                    <li key={event.id} className="p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-medium text-foreground">
+                          {ACTION_LABELS[event.action] ?? event.action}
+                        </span>
+                        <span className="shrink-0 text-xs text-foreground-muted">
+                          {formatDate(event.createdAt)}
+                        </span>
+                      </div>
+                      <div className="mt-1 text-xs text-foreground-muted">
+                        {event.newTier?.name ?? event.previousTier?.name ?? "—"}
+                        {event.newExpiresAt && (
+                          <span> · válido até {formatDate(event.newExpiresAt)}</span>
+                        )}
+                        {event.actor?.email && (
+                          <span> · por {event.actor.email}</span>
+                        )}
+                      </div>
+                      {event.internalNote && (
+                        <div className="mt-1 text-xs italic text-foreground-muted">
+                          Nota: {event.internalNote}
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-foreground-muted">
+                  Nenhum evento de acesso registrado.
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
-    </div>
+    </Dialog>
   )
 }
 

@@ -4,6 +4,11 @@ import { useNavigate, useParams } from "react-router-dom"
 import PostForm from "../../components/posts/PostForm"
 import { fetchPost } from "../../services/posts"
 import type { Post } from "../../services/posts"
+import PageContainer from "../../components/ui/PageContainer"
+import PageHeader from "../../components/ui/PageHeader"
+import Card from "../../components/ui/Card"
+import ErrorState from "../../components/ui/ErrorState"
+import Skeleton from "../../components/ui/Skeleton"
 
 export default function EditPostPage() {
   const { id } = useParams<{ id: string }>()
@@ -24,39 +29,40 @@ export default function EditPostPage() {
   }, [id])
 
   if (loading) {
-    return <p className="text-gray-600">Carregando post...</p>
+    return (
+      <PageContainer width="standard">
+        <Skeleton className="h-10 w-1/3" />
+        <Skeleton className="mt-4 h-96 w-full" />
+      </PageContainer>
+    )
   }
 
   if (error) {
     return (
-      <div>
-        <p className="rounded bg-red-100 p-3 text-red-700">{error}</p>
-        <button
-          type="button"
-          onClick={() => navigate("/posts")}
-          className="mt-4 rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-        >
-          Voltar para posts
-        </button>
-      </div>
+      <PageContainer width="standard">
+        <ErrorState
+          title={error}
+          onRetry={() => navigate("/posts")}
+          retryLabel="Voltar para posts"
+        />
+      </PageContainer>
     )
   }
 
   return (
-    <div>
-      <h2 className="text-3xl font-bold text-black">Editar post</h2>
+    <PageContainer width="standard">
+      <PageHeader
+        title="Editar post"
+        description="Atualize o conteúdo do post."
+      />
 
-      <p className="mt-2 text-gray-600">
-        Atualize o conteúdo do post.
-      </p>
-
-      <div className="mt-6 rounded-lg border border-gray-200 bg-white p-6 shadow">
+      <Card className="p-6">
         <PostForm
           post={post}
           onSaved={() => navigate("/posts")}
           onCancel={() => navigate("/posts")}
         />
-      </div>
-    </div>
+      </Card>
+    </PageContainer>
   )
 }

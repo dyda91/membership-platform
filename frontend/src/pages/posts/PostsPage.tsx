@@ -9,12 +9,19 @@ import {
 } from "../../services/posts"
 import type { Post } from "../../services/posts"
 import PostCard from "../../components/posts/PostCard"
+import PageContainer from "../../components/ui/PageContainer"
+import PageHeader from "../../components/ui/PageHeader"
+import { buttonClasses } from "../../components/ui/button-styles"
+import EmptyState from "../../components/ui/EmptyState"
+import Alert from "../../components/ui/Alert"
+import ConfirmDialog from "../../components/ui/ConfirmDialog"
 
 export default function PostsPage() {
   const [posts, setPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<Post | null>(null)
+  const [deletingBusy, setDeletingBusy] = useState(false)
 
   const loadPosts = useCallback(async () => {
     try {
@@ -61,45 +68,54 @@ export default function PostsPage() {
       return
     }
 
+    setDeletingBusy(true)
+    setError(null)
+
     try {
       await deletePost(deleting.id)
       setPosts((current) => current.filter((post) => post.id !== deleting.id))
       setDeleting(null)
     } catch {
       setError("Não foi possível excluir o post.")
+    } finally {
+      setDeletingBusy(false)
     }
   }
 
   if (loading) {
-    return <p className="text-gray-600">Carregando posts...</p>
+    return (
+      <PageContainer width="wide">
+        <p className="text-sm text-foreground-muted">Carregando posts...</p>
+      </PageContainer>
+    )
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold text-black">Posts</h2>
-
-        <Link
-          to="/posts/new"
-          className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-        >
-          Novo post
-        </Link>
-      </div>
-
-      <p className="mt-2 text-gray-600">
-        Gerencie os conteúdos da plataforma.
-      </p>
+    <PageContainer width="wide">
+      <PageHeader
+        title="Posts"
+        description="Gerencie os conteúdos da plataforma."
+        actions={
+          <Link to="/posts/new" className={buttonClasses("primary", "md")}>
+            Novo post
+          </Link>
+        }
+      />
 
       {error && (
-        <p className="mt-4 rounded bg-red-100 p-3 text-red-700">{error}</p>
+        <div className="mb-4">
+          <Alert variant="error">{error}</Alert>
+        </div>
       )}
 
-      <div className="mt-6 space-y-4">
-        {posts.length === 0 ? (
-          <p className="text-gray-600">Nenhum post encontrado.</p>
-        ) : (
-          posts.map((post) => (
+      {posts.length === 0 ? (
+        <EmptyState
+          title="Nenhum post encontrado"
+          description="Crie o primeiro conteúdo usando o botão acima."
+        />
+      ) : (
+        <div className="space-y-4">
+          {posts.map((post) => (
             <PostCard
               key={post.id}
               post={post}
@@ -110,44 +126,30 @@ export default function PostsPage() {
               onPublish={(item) => void handlePublish(item)}
               onArchive={(item) => void handleArchive(item)}
             />
-          ))
-        )}
-      </div>
-
-      {deleting && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm rounded-lg bg-white p-6 shadow">
-            <h3 className="text-lg font-semibold text-gray-900">
-              Excluir post
-            </h3>
-
-            <p className="mt-2 text-sm text-gray-600">
-              Tem certeza que deseja excluir o post{" "}
-              <span className="font-medium text-gray-900">
-                {deleting.title}
-              </span>
-              ?
-            </p>
-
-            <div className="mt-6 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setDeleting(null)}
-                className="rounded bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-300"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleDelete()}
-                className="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
-              >
-                Excluir
-              </button>
-            </div>
-          </div>
+          ))}
         </div>
       )}
-    </div>
+
+      <ConfirmDialog
+        open={deleting !== null}
+        title="Excluir post"
+        description={
+          deleting ? (
+            <>
+              Tem certeza que deseja excluir o post{" "}
+              <span className="font-medium text-foreground">
+                {deleting.title}
+              </span>
+              ? Esta ação não pode ser desfeita.
+            </>
+          ) : undefined
+        }
+        confirmLabel="Excluir"
+        variant="danger"
+        busy={deletingBusy}
+        onConfirm={() => void handleDelete()}
+        onCancel={() => setDeleting(null)}
+      />
+    </PageContainer>
   )
 }

@@ -5,6 +5,11 @@ import type { FeedArtist, FeedPost } from "../../services/feed"
 import FeedList from "../../components/feed/FeedList"
 import ArtistHeader from "../../components/artist/ArtistHeader"
 import NoArtistConfiguredState from "../../components/artist/NoArtistConfiguredState"
+import PageContainer from "../../components/ui/PageContainer"
+import PageHeader from "../../components/ui/PageHeader"
+import Button from "../../components/ui/Button"
+import Skeleton from "../../components/ui/Skeleton"
+import ErrorState from "../../components/ui/ErrorState"
 
 const PAGE_SIZE = 10
 
@@ -62,43 +67,55 @@ export default function FeedPage() {
   }
 
   if (loading) {
-    return <p className="text-gray-600">Carregando feed...</p>
+    return (
+      <PageContainer width="narrow">
+        <div className="space-y-4">
+          <Skeleton className="h-40 w-full" />
+          <Skeleton className="h-4 w-1/3" />
+          <Skeleton className="h-64 w-full" />
+          <Skeleton className="h-64 w-full" />
+        </div>
+      </PageContainer>
+    )
   }
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <PageContainer width="narrow">
       {artist?.configured ? (
         <ArtistHeader artist={artist} />
       ) : (
         <NoArtistConfiguredState />
       )}
 
-      <h2 className="mt-6 text-3xl font-bold text-black">Feed</h2>
-
-      <p className="mt-2 text-gray-600">
-        Veja os conteúdos publicados pela artista.
-      </p>
+      <PageHeader
+        title="Feed"
+        description="Veja os conteúdos publicados pela artista."
+        level="h2"
+      />
 
       {error && (
-        <p className="mt-4 rounded bg-red-100 p-3 text-red-700">{error}</p>
+        <div className="mb-4">
+          <ErrorState
+            title={error}
+            onRetry={posts.length === 0 ? () => void loadFirst() : () => void loadMore()}
+            retryLabel="Tentar novamente"
+          />
+        </div>
       )}
 
-      <div className="mt-6">
-        <FeedList posts={posts} contactActions={artist?.contactActions ?? []} />
-      </div>
+      <FeedList posts={posts} contactActions={artist?.contactActions ?? []} />
 
       {hasMore && (
         <div className="mt-6 text-center">
-          <button
-            type="button"
+          <Button
+            variant="outline"
             onClick={() => void loadMore()}
-            disabled={loadingMore}
-            className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            loading={loadingMore}
           >
             {loadingMore ? "Carregando..." : "Carregar mais"}
-          </button>
+          </Button>
         </div>
       )}
-    </div>
+    </PageContainer>
   )
 }

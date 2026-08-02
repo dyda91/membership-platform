@@ -1,4 +1,5 @@
 import type { FeedContactAction } from "../../services/artist-profile"
+import { buttonClasses } from "../ui/button-styles"
 
 interface ArtistContactActionsProps {
   actions: FeedContactAction[]
@@ -19,7 +20,7 @@ export default function ArtistContactActions({
           href={action.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="rounded bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700"
+          className={buttonClasses("primary", "sm")}
         >
           {action.label}
         </a>

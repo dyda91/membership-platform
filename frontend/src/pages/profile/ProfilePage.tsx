@@ -4,6 +4,16 @@ import type { FormEvent } from "react"
 import { useAuth } from "../../contexts/AuthContext"
 import { fetchOwnProfile, updateOwnProfile } from "../../services/profile"
 import { fetchArtistProfile, updateArtistProfile } from "../../services/artist"
+import PageContainer from "../../components/ui/PageContainer"
+import PageHeader from "../../components/ui/PageHeader"
+import Card from "../../components/ui/Card"
+import Field from "../../components/ui/Field"
+import Input from "../../components/ui/Input"
+import Textarea from "../../components/ui/Textarea"
+import Button from "../../components/ui/Button"
+import Alert from "../../components/ui/Alert"
+import Skeleton from "../../components/ui/Skeleton"
+import TierBadge from "../../components/auth/TierBadge"
 
 interface ArtistProfileForm {
   name: string
@@ -14,7 +24,7 @@ interface ArtistProfileForm {
 }
 
 export default function ProfilePage() {
-  const { canManageContent } = useAuth()
+  const { canManageContent, user } = useAuth()
   const [name, setName] = useState("")
   const [artistForm, setArtistForm] = useState<ArtistProfileForm>({
     name: "",
@@ -43,8 +53,8 @@ export default function ProfilePage() {
             bannerUrl: profile.bannerUrl ?? "",
           })
         } else {
-          const user = await fetchOwnProfile()
-          setName(user.name ?? "")
+          const profile = await fetchOwnProfile()
+          setName(profile.name ?? "")
         }
       } catch {
         setError("Não foi possível carregar o perfil.")
@@ -84,168 +94,133 @@ export default function ProfilePage() {
   }
 
   if (loading) {
-    return <p className="text-gray-600">Carregando perfil...</p>
+    return (
+      <PageContainer width="standard">
+        <Skeleton className="h-10 w-1/3" />
+        <Skeleton className="mt-6 h-72 w-full" />
+      </PageContainer>
+    )
   }
 
   return (
-    <div>
-      <h2 className="text-3xl font-bold text-black">Meu perfil</h2>
+    <PageContainer width="standard">
+      <PageHeader title="Meu perfil" description="Edite as informações básicas do seu perfil." />
 
-      <p className="mt-2 text-gray-600">
-        Edite as informações básicas do seu perfil.
-      </p>
+      <div className="mb-4 flex items-center gap-2">
+        <TierBadge
+          tier={user?.tier ?? null}
+          accessStatus={user?.tierAccessStatus}
+          expiresAt={user?.tierExpiresAt}
+          permanent={user?.tierPermanent}
+        />
+      </div>
 
       {error && (
-        <p className="mt-4 rounded bg-red-100 p-3 text-red-700">{error}</p>
+        <div className="mb-4">
+          <Alert variant="error">{error}</Alert>
+        </div>
       )}
 
       {saved && (
-        <p className="mt-4 rounded bg-green-100 p-3 text-green-700">
-          Perfil atualizado com sucesso.
-        </p>
+        <div className="mb-4">
+          <Alert variant="success">Perfil atualizado com sucesso.</Alert>
+        </div>
       )}
 
-      <form
-        onSubmit={handleSubmit}
-        className="mt-6 space-y-4 rounded-lg border border-gray-200 bg-white p-6 shadow"
-      >
-        {isArtist ? (
-          <>
-            <div>
-              <label
-                htmlFor="name"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Nome
-              </label>
-              <input
+      <Card>
+        <form onSubmit={handleSubmit} className="space-y-5 p-6">
+          {isArtist ? (
+            <>
+              <Field id="name" label="Nome">
+                <Input
+                  id="name"
+                  type="text"
+                  value={artistForm.name}
+                  onChange={(event) =>
+                    setArtistForm((current) => ({
+                      ...current,
+                      name: event.target.value,
+                    }))
+                  }
+                />
+              </Field>
+
+              <Field id="description" label="Descrição">
+                <Input
+                  id="description"
+                  type="text"
+                  value={artistForm.description}
+                  onChange={(event) =>
+                    setArtistForm((current) => ({
+                      ...current,
+                      description: event.target.value,
+                    }))
+                  }
+                />
+              </Field>
+
+              <Field id="bio" label="Bio">
+                <Textarea
+                  id="bio"
+                  value={artistForm.bio}
+                  onChange={(event) =>
+                    setArtistForm((current) => ({
+                      ...current,
+                      bio: event.target.value,
+                    }))
+                  }
+                  rows={4}
+                />
+              </Field>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field id="avatarUrl" label="URL do avatar">
+                  <Input
+                    id="avatarUrl"
+                    type="url"
+                    value={artistForm.avatarUrl}
+                    onChange={(event) =>
+                      setArtistForm((current) => ({
+                        ...current,
+                        avatarUrl: event.target.value,
+                      }))
+                    }
+                  />
+                </Field>
+
+                <Field id="bannerUrl" label="URL do banner">
+                  <Input
+                    id="bannerUrl"
+                    type="url"
+                    value={artistForm.bannerUrl}
+                    onChange={(event) =>
+                      setArtistForm((current) => ({
+                        ...current,
+                        bannerUrl: event.target.value,
+                      }))
+                    }
+                  />
+                </Field>
+              </div>
+            </>
+          ) : (
+            <Field id="name" label="Nome">
+              <Input
                 id="name"
                 type="text"
-                value={artistForm.name}
-                onChange={(event) =>
-                  setArtistForm((current) => ({
-                    ...current,
-                    name: event.target.value,
-                  }))
-                }
-                className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
               />
-            </div>
+            </Field>
+          )}
 
-            <div>
-              <label
-                htmlFor="description"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Descrição
-              </label>
-              <input
-                id="description"
-                type="text"
-                value={artistForm.description}
-                onChange={(event) =>
-                  setArtistForm((current) => ({
-                    ...current,
-                    description: event.target.value,
-                  }))
-                }
-                className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="bio"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Bio
-              </label>
-              <textarea
-                id="bio"
-                value={artistForm.bio}
-                onChange={(event) =>
-                  setArtistForm((current) => ({
-                    ...current,
-                    bio: event.target.value,
-                  }))
-                }
-                rows={4}
-                className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
-              />
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label
-                  htmlFor="avatarUrl"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  URL do avatar
-                </label>
-                <input
-                  id="avatarUrl"
-                  type="url"
-                  value={artistForm.avatarUrl}
-                  onChange={(event) =>
-                    setArtistForm((current) => ({
-                      ...current,
-                      avatarUrl: event.target.value,
-                    }))
-                  }
-                  className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="bannerUrl"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  URL do banner
-                </label>
-                <input
-                  id="bannerUrl"
-                  type="url"
-                  value={artistForm.bannerUrl}
-                  onChange={(event) =>
-                    setArtistForm((current) => ({
-                      ...current,
-                      bannerUrl: event.target.value,
-                    }))
-                  }
-                  className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
-                />
-              </div>
-            </div>
-          </>
-        ) : (
-          <div>
-            <label
-              htmlFor="name"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Nome
-            </label>
-            <input
-              id="name"
-              type="text"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
-            />
+          <div className="flex gap-2">
+            <Button type="submit" loading={saving}>
+              {saving ? "Salvando..." : "Salvar perfil"}
+            </Button>
           </div>
-        )}
-
-        <div className="flex gap-2">
-          <button
-            type="submit"
-            disabled={saving}
-            className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-          >
-            {saving ? "Salvando..." : "Salvar perfil"}
-          </button>
-        </div>
-      </form>
-    </div>
+        </form>
+      </Card>
+    </PageContainer>
   )
 }

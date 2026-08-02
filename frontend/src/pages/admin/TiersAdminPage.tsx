@@ -13,6 +13,15 @@ import type {
   Tier,
   UpdateTierData,
 } from "../../services/tiers"
+import PageContainer from "../../components/ui/PageContainer"
+import PageHeader from "../../components/ui/PageHeader"
+import Card from "../../components/ui/Card"
+import Field from "../../components/ui/Field"
+import Input from "../../components/ui/Input"
+import Button from "../../components/ui/Button"
+import Alert from "../../components/ui/Alert"
+import EmptyState from "../../components/ui/EmptyState"
+import ConfirmDialog from "../../components/ui/ConfirmDialog"
 
 const EMPTY_FORM: CreateTierData = {
   name: "",
@@ -126,222 +135,182 @@ export default function TiersAdminPage() {
   }
 
   if (loading) {
-    return <p className="text-gray-600">Carregando tiers...</p>
+    return (
+      <PageContainer width="wide">
+        <p className="text-sm text-foreground-muted">Carregando tiers...</p>
+      </PageContainer>
+    )
   }
 
   return (
-    <div>
-      <h2 className="text-3xl font-bold text-black">
-        Gerenciamento de Tiers
-      </h2>
-
-      <p className="mt-2 text-gray-600">
-        Crie e gerencie os níveis de acesso da plataforma.
-      </p>
+    <PageContainer width="wide">
+      <PageHeader
+        title="Gerenciamento de Tiers"
+        description="Crie e gerencie os níveis de acesso da plataforma."
+      />
 
       {error && (
-        <p className="mt-4 rounded bg-red-100 p-3 text-red-700">
-          {error}
-        </p>
+        <div className="mb-4">
+          <Alert variant="error">{error}</Alert>
+        </div>
       )}
 
-      <form
-        onSubmit={handleSubmit}
-        className="mt-6 rounded-lg border border-gray-200 bg-white p-6 shadow"
-      >
-        <h3 className="text-lg font-semibold text-gray-900">
-          {editing ? "Editar tier" : "Novo tier"}
-        </h3>
+      <Card>
+        <form onSubmit={handleSubmit} className="space-y-5 p-6">
+          <h2 className="text-lg font-semibold text-foreground">
+            {editing ? "Editar tier" : "Novo tier"}
+          </h2>
 
-        <div className="mt-4 grid gap-4 sm:grid-cols-3">
-          <div>
-            <label
-              htmlFor="name"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Nome
-            </label>
-            <input
-              id="name"
-              type="text"
-              value={form.name}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, name: event.target.value }))
-              }
-              required
-              className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
-            />
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Field id="name" label="Nome">
+              <Input
+                id="name"
+                type="text"
+                value={form.name}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, name: event.target.value }))
+                }
+                required
+              />
+            </Field>
+
+            <Field id="priority" label="Prioridade">
+              <Input
+                id="priority"
+                type="number"
+                min={0}
+                value={form.priority}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    priority: Number(event.target.value),
+                  }))
+                }
+              />
+            </Field>
+
+            <Field id="description" label="Descrição" className="sm:col-span-3">
+              <Input
+                id="description"
+                type="text"
+                value={form.description}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    description: event.target.value,
+                  }))
+                }
+                required
+              />
+            </Field>
           </div>
 
-          <div>
-            <label
-              htmlFor="priority"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Prioridade
-            </label>
-            <input
-              id="priority"
-              type="number"
-              min={0}
-              value={form.priority}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  priority: Number(event.target.value),
-                }))
-              }
-              className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
-            />
+          <div className="flex gap-2">
+            <Button type="submit" loading={submitting}>
+              {submitting
+                ? "Salvando..."
+                : editing
+                  ? "Salvar alterações"
+                  : "Criar tier"}
+            </Button>
+
+            {editing && (
+              <Button variant="outline" onClick={resetForm}>
+                Cancelar
+              </Button>
+            )}
           </div>
+        </form>
+      </Card>
 
-          <div className="sm:col-span-3">
-            <label
-              htmlFor="description"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Descrição
-            </label>
-            <input
-              id="description"
-              type="text"
-              value={form.description}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  description: event.target.value,
-                }))
-              }
-              required
-              className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
-            />
-          </div>
-        </div>
-
-        <div className="mt-4 flex gap-2">
-          <button
-            type="submit"
-            disabled={submitting}
-            className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-          >
-            {submitting
-              ? "Salvando..."
-              : editing
-                ? "Salvar alterações"
-                : "Criar tier"}
-          </button>
-
-          {editing && (
-            <button
-              type="button"
-              onClick={resetForm}
-              className="rounded bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-300"
-            >
-              Cancelar
-            </button>
-          )}
-        </div>
-      </form>
-
-      <div className="mt-6 overflow-hidden rounded-lg border border-gray-200 bg-white shadow">
+      <div className="mt-6 overflow-hidden rounded-lg border border-border bg-surface shadow-card">
         {tiers.length === 0 ? (
-          <p className="p-6 text-gray-600">
-            Nenhum tier encontrado.
-          </p>
+          <EmptyState
+            className="m-4 border-0"
+            title="Nenhum tier encontrado"
+            description="Crie o primeiro nível de acesso acima."
+          />
         ) : (
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                  Nome
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                  Descrição
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                  Prioridade
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                  Criado em
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wide text-gray-500">
-                  Ações
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {tiers.map((tier) => (
-                <tr key={tier.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                    {tier.name}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
-                    {tier.description}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
-                    {tier.priority}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
-                    {formatDate(tier.createdAt)}
-                  </td>
-                  <td className="px-6 py-4 text-right text-sm">
-                    <button
-                      type="button"
-                      onClick={() => startEdit(tier)}
-                      className="rounded bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-200"
-                    >
-                      Editar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDeleting(tier)}
-                      className="ml-2 rounded bg-red-100 px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-200"
-                    >
-                      Excluir
-                    </button>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-border">
+              <thead className="bg-surface-muted">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-foreground-muted">
+                    Nome
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-foreground-muted">
+                    Descrição
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-foreground-muted">
+                    Prioridade
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-foreground-muted">
+                    Criado em
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wide text-foreground-muted">
+                    Ações
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {tiers.map((tier) => (
+                  <tr key={tier.id} className="hover:bg-surface-muted">
+                    <td className="px-6 py-4 text-sm font-medium text-foreground">
+                      {tier.name}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-foreground-muted">
+                      {tier.description}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-foreground-muted">
+                      {tier.priority}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-foreground-muted">
+                      {formatDate(tier.createdAt)}
+                    </td>
+                    <td className="px-6 py-4 text-right text-sm">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => startEdit(tier)}
+                        >
+                          Editar
+                        </Button>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() => setDeleting(tier)}
+                        >
+                          Excluir
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
-      {deleting && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm rounded-lg bg-white p-6 shadow">
-            <h3 className="text-lg font-semibold text-gray-900">
-              Excluir tier
-            </h3>
-
-            <p className="mt-2 text-sm text-gray-600">
+      <ConfirmDialog
+        open={deleting !== null}
+        title="Excluir tier"
+        description={
+          deleting ? (
+            <>
               Tem certeza que deseja excluir o tier{" "}
-              <span className="font-medium text-gray-900">
-                {deleting.name}
-              </span>
+              <span className="font-medium text-foreground">{deleting.name}</span>
               ?
-            </p>
-
-            <div className="mt-6 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setDeleting(null)}
-                className="rounded bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-300"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleDelete()}
-                disabled={submitting}
-                className="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
-              >
-                {submitting ? "Excluindo..." : "Excluir"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+            </>
+          ) : undefined
+        }
+        confirmLabel="Excluir"
+        variant="danger"
+        busy={submitting}
+        onConfirm={() => void handleDelete()}
+        onCancel={() => setDeleting(null)}
+      />
+    </PageContainer>
   )
 }

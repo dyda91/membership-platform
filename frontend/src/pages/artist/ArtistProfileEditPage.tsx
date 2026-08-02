@@ -11,6 +11,17 @@ import {
 import type { ManageArtistProfile } from "../../services/artist-profile"
 import ArtistAvatar from "../../components/artist/ArtistAvatar"
 import ArtistBanner from "../../components/artist/ArtistBanner"
+import PageContainer from "../../components/ui/PageContainer"
+import PageHeader from "../../components/ui/PageHeader"
+import Card from "../../components/ui/Card"
+import Field from "../../components/ui/Field"
+import Input from "../../components/ui/Input"
+import Textarea from "../../components/ui/Textarea"
+import Checkbox from "../../components/ui/Checkbox"
+import Button from "../../components/ui/Button"
+import Alert from "../../components/ui/Alert"
+import ErrorState from "../../components/ui/ErrorState"
+import Skeleton from "../../components/ui/Skeleton"
 
 export default function ArtistProfileEditPage() {
   const navigate = useNavigate()
@@ -102,45 +113,47 @@ export default function ArtistProfileEditPage() {
   }
 
   if (loading) {
-    return <p className="text-gray-600">Carregando perfil...</p>
+    return (
+      <PageContainer width="standard">
+        <Skeleton className="h-10 w-1/3" />
+        <Skeleton className="mt-6 h-40 w-full" />
+        <Skeleton className="mt-4 h-96 w-full" />
+      </PageContainer>
+    )
   }
 
   if (!profile) {
     return (
-      <div>
-        <p className="rounded bg-red-100 p-3 text-red-700">{error}</p>
-        <button
-          type="button"
-          onClick={() => navigate("/")}
-          className="mt-4 rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-        >
-          Voltar ao Feed
-        </button>
-      </div>
+      <PageContainer width="standard">
+        <ErrorState
+          title={error ?? "Perfil não encontrado."}
+          onRetry={() => navigate("/")}
+          retryLabel="Voltar ao Feed"
+        />
+      </PageContainer>
     )
   }
 
   return (
-    <div>
-      <h2 className="text-3xl font-bold text-black">
-        Página da artista
-      </h2>
-
-      <p className="mt-2 text-gray-600">
-        Edite as informações públicas exibidas no Feed.
-      </p>
+    <PageContainer width="standard">
+      <PageHeader
+        title="Página da artista"
+        description="Edite as informações públicas exibidas no Feed."
+      />
 
       {error && (
-        <p className="mt-4 rounded bg-red-100 p-3 text-red-700">{error}</p>
+        <div className="mb-4">
+          <Alert variant="error">{error}</Alert>
+        </div>
       )}
 
       {saved && (
-        <p className="mt-4 rounded bg-green-100 p-3 text-green-700">
-          Perfil atualizado com sucesso.
-        </p>
+        <div className="mb-4">
+          <Alert variant="success">Perfil atualizado com sucesso.</Alert>
+        </div>
       )}
 
-      <div className="mt-6 overflow-hidden rounded-lg border border-gray-200 bg-white shadow">
+      <Card className="overflow-hidden">
         <ArtistBanner url={profile.bannerUrl} />
 
         <div className="p-6">
@@ -148,136 +161,94 @@ export default function ArtistProfileEditPage() {
             <ArtistAvatar url={profile.avatarUrl} name={profile.name} />
           </div>
 
-          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-            <div>
-              <label
-                htmlFor="name"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Nome
-              </label>
-              <input
+          <form onSubmit={handleSubmit} className="mt-6 space-y-5">
+            <Field id="name" label="Nome">
+              <Input
                 id="name"
                 type="text"
                 value={profile.name ?? ""}
                 onChange={(event) => update("name", event.target.value)}
-                className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
               />
-            </div>
+            </Field>
 
-            <div>
-              <label
-                htmlFor="bio"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Biografia
-              </label>
-              <textarea
+            <Field id="bio" label="Biografia">
+              <Textarea
                 id="bio"
                 value={profile.bio ?? ""}
                 onChange={(event) => update("bio", event.target.value)}
                 rows={3}
-                className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
               />
-            </div>
+            </Field>
 
-            <div>
-              <label
-                htmlFor="presentationText"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Apresentação
-              </label>
-              <textarea
+            <Field id="presentationText" label="Apresentação">
+              <Textarea
                 id="presentationText"
                 value={profile.presentationText ?? ""}
                 onChange={(event) =>
                   update("presentationText", event.target.value)
                 }
                 rows={4}
-                className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
               />
-            </div>
+            </Field>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label
-                  htmlFor="whatsappValue"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  WhatsApp
-                </label>
-                <input
-                  id="whatsappValue"
-                  type="text"
-                  placeholder="5511999998888"
-                  value={profile.whatsappValue ?? ""}
-                  onChange={(event) =>
-                    update("whatsappValue", event.target.value)
-                  }
-                  className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
-                />
-                <label className="mt-2 flex items-center gap-2 text-sm text-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={profile.whatsappEnabled}
+              <div className="space-y-2">
+                <Field id="whatsappValue" label="WhatsApp">
+                  <Input
+                    id="whatsappValue"
+                    type="text"
+                    placeholder="5511999998888"
+                    value={profile.whatsappValue ?? ""}
                     onChange={(event) =>
-                      update("whatsappEnabled", event.target.checked)
+                      update("whatsappValue", event.target.value)
                     }
                   />
-                  Habilitar WhatsApp
-                </label>
+                </Field>
+                <Checkbox
+                  id="whatsappEnabled"
+                  label="Habilitar WhatsApp"
+                  checked={profile.whatsappEnabled}
+                  onChange={(event) =>
+                    update("whatsappEnabled", event.target.checked)
+                  }
+                />
               </div>
 
-              <div>
-                <label
-                  htmlFor="discordUrl"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Discord
-                </label>
-                <input
-                  id="discordUrl"
-                  type="url"
-                  placeholder="https://discord.gg/..."
-                  value={profile.discordUrl ?? ""}
-                  onChange={(event) => update("discordUrl", event.target.value)}
-                  className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
-                />
-                <label className="mt-2 flex items-center gap-2 text-sm text-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={profile.discordEnabled}
-                    onChange={(event) =>
-                      update("discordEnabled", event.target.checked)
-                    }
+              <div className="space-y-2">
+                <Field id="discordUrl" label="Discord">
+                  <Input
+                    id="discordUrl"
+                    type="url"
+                    placeholder="https://discord.gg/..."
+                    value={profile.discordUrl ?? ""}
+                    onChange={(event) => update("discordUrl", event.target.value)}
                   />
-                  Habilitar Discord
-                </label>
+                </Field>
+                <Checkbox
+                  id="discordEnabled"
+                  label="Habilitar Discord"
+                  checked={profile.discordEnabled}
+                  onChange={(event) =>
+                    update("discordEnabled", event.target.checked)
+                  }
+                />
               </div>
             </div>
 
-            <div>
-              <label
-                htmlFor="contactButtonText"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Texto do botão de contato
-              </label>
-              <input
+            <Field id="contactButtonText" label="Texto do botão de contato">
+              <Input
                 id="contactButtonText"
                 type="text"
                 value={profile.contactButtonText ?? ""}
                 onChange={(event) =>
                   update("contactButtonText", event.target.value)
                 }
-                className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
               />
-            </div>
+            </Field>
 
             <div className="flex flex-wrap gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-foreground">
                   Avatar
                 </label>
                 <input
@@ -287,15 +258,15 @@ export default function ArtistProfileEditPage() {
                   onChange={(event) =>
                     void handleAvatarUpload(event.target.files?.[0])
                   }
-                  className="mt-1 block w-full text-sm text-gray-500"
+                  className="mt-1 block w-full text-sm text-foreground-subtle file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-2 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary-hover"
                 />
                 {uploading === "avatar" && (
-                  <p className="mt-1 text-xs text-gray-500">Enviando...</p>
+                  <p className="mt-1 text-xs text-foreground-muted">Enviando...</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-foreground">
                   Banner
                 </label>
                 <input
@@ -305,34 +276,26 @@ export default function ArtistProfileEditPage() {
                   onChange={(event) =>
                     void handleBannerUpload(event.target.files?.[0])
                   }
-                  className="mt-1 block w-full text-sm text-gray-500"
+                  className="mt-1 block w-full text-sm text-foreground-subtle file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-2 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary-hover"
                 />
                 {uploading === "banner" && (
-                  <p className="mt-1 text-xs text-gray-500">Enviando...</p>
+                  <p className="mt-1 text-xs text-foreground-muted">Enviando...</p>
                 )}
               </div>
             </div>
 
             <div className="flex gap-2">
-              <button
-                type="submit"
-                disabled={saving}
-                className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-              >
+              <Button type="submit" loading={saving}>
                 {saving ? "Salvando..." : "Salvar perfil"}
-              </button>
+              </Button>
 
-              <button
-                type="button"
-                onClick={() => navigate("/")}
-                className="rounded bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-300"
-              >
+              <Button variant="outline" onClick={() => navigate("/")}>
                 Ver Feed
-              </button>
+              </Button>
             </div>
           </form>
         </div>
-      </div>
-    </div>
+      </Card>
+    </PageContainer>
   )
 }

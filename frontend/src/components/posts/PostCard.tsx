@@ -2,6 +2,9 @@ import type { Post } from "../../services/posts"
 import DraftBadge from "./DraftBadge"
 import PostMediaGallery from "../feed/PostMediaGallery"
 import type { FeedMedia } from "../../services/feed"
+import Card from "../ui/Card"
+import Badge from "../ui/Badge"
+import Button from "../ui/Button"
 
 interface PostCardProps {
   post: Post
@@ -40,16 +43,16 @@ export default function PostCard({
   onArchive,
 }: PostCardProps) {
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow">
+    <Card className="p-6">
       <div className="flex items-center justify-between gap-4">
-        <h3 className="text-lg font-semibold text-gray-900">
+        <h3 className="min-w-0 truncate text-lg font-semibold text-foreground">
           {post.title ?? "Sem título"}
         </h3>
 
         <DraftBadge status={post.status} />
       </div>
 
-      <p className="mt-2 text-sm text-gray-600">
+      <p className="mt-2 whitespace-pre-wrap text-sm text-foreground-muted">
         {post.content}
       </p>
 
@@ -58,13 +61,11 @@ export default function PostCard({
         tierName={post.tier?.name}
       />
 
-      <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-gray-500">
+      <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-foreground-muted">
         <span>Criado em {formatDate(post.createdAt)}</span>
 
         {post.tier && (
-          <span className="rounded bg-blue-100 px-2 py-1 font-medium text-blue-700">
-            Tier: {post.tier.name}
-          </span>
+          <Badge variant="primary">Tier: {post.tier.name}</Badge>
         )}
 
         <span>{post.media.length} mídia(s)</span>
@@ -72,45 +73,29 @@ export default function PostCard({
 
       <div className="mt-4 flex flex-wrap gap-2">
         {onEdit && (
-          <button
-            type="button"
-            onClick={() => onEdit(post)}
-            className="rounded bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-200"
-          >
+          <Button variant="outline" size="sm" onClick={() => onEdit(post)}>
             Editar
-          </button>
+          </Button>
         )}
 
         {onPublish && post.status === "DRAFT" && (
-          <button
-            type="button"
-            onClick={() => onPublish(post)}
-            className="rounded bg-green-100 px-3 py-1 text-xs font-medium text-green-700 hover:bg-green-200"
-          >
+          <Button variant="secondary" size="sm" onClick={() => onPublish(post)}>
             Publicar
-          </button>
+          </Button>
         )}
 
         {onArchive && post.status !== "ARCHIVED" && (
-          <button
-            type="button"
-            onClick={() => onArchive(post)}
-            className="rounded bg-gray-200 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-300"
-          >
+          <Button variant="ghost" size="sm" onClick={() => onArchive(post)}>
             Arquivar
-          </button>
+          </Button>
         )}
 
         {onDelete && (
-          <button
-            type="button"
-            onClick={() => onDelete(post)}
-            className="rounded bg-red-100 px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-200"
-          >
+          <Button variant="danger" size="sm" onClick={() => onDelete(post)}>
             Excluir
-          </button>
+          </Button>
         )}
       </div>
-    </div>
+    </Card>
   )
 }

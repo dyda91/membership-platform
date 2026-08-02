@@ -2,6 +2,8 @@ import { useState } from "react"
 import { deleteMedia, uploadMedia } from "../../services/media"
 import type { Media } from "../../services/media"
 import MediaPreview from "./MediaPreview"
+import Button from "../ui/Button"
+import Alert from "../ui/Alert"
 
 interface MediaUploaderProps {
   postId?: string
@@ -46,29 +48,26 @@ export default function MediaUploader({
 
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700">
+      <label className="mb-1.5 block text-sm font-medium text-foreground">
         Mídias
       </label>
 
       <div className="mt-2 grid gap-4 sm:grid-cols-2">
         {media.map((item) => (
-          <div
-            key={item.id}
-            className="rounded border border-gray-200 p-2"
-          >
+          <div key={item.id} className="rounded-md border border-border p-2">
             <MediaPreview media={item} />
 
-            <div className="mt-2 flex items-center justify-between">
-              <span className="truncate text-xs text-gray-500">
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <span className="truncate text-xs text-foreground-muted">
                 {item.originalName}
               </span>
-              <button
-                type="button"
+              <Button
+                variant="danger"
+                size="sm"
                 onClick={() => void handleRemove(item)}
-                className="rounded bg-red-100 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-200"
               >
                 Remover
-              </button>
+              </Button>
             </div>
           </div>
         ))}
@@ -78,14 +77,14 @@ export default function MediaUploader({
         type="file"
         accept="image/*,video/*"
         onChange={(event) => void handleUpload(event.target.files?.[0])}
-        className="mt-4 block w-full text-sm text-gray-500 file:mr-3 file:rounded file:border-0 file:bg-blue-600 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-blue-700"
+        className="mt-4 block w-full text-sm text-foreground-subtle file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-2 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary-hover"
       />
 
       {uploading && (
-        <p className="mt-2 text-sm text-gray-600">Enviando arquivo...</p>
+        <p className="mt-2 text-sm text-foreground-muted">Enviando arquivo...</p>
       )}
 
-      {error && <p className="mt-2 text-sm text-red-700">{error}</p>}
+      {error && <div className="mt-2"><Alert variant="error">{error}</Alert></div>}
     </div>
   )
 }

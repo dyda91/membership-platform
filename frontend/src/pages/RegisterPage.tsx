@@ -3,6 +3,12 @@ import type { FormEvent } from "react"
 import { Link, useNavigate } from "react-router-dom"
 
 import { login, register } from "../services/auth"
+import PageContainer from "../components/ui/PageContainer"
+import Card from "../components/ui/Card"
+import Field from "../components/ui/Field"
+import Input from "../components/ui/Input"
+import Button from "../components/ui/Button"
+import Alert from "../components/ui/Alert"
 
 export default function RegisterPage() {
   const navigate = useNavigate()
@@ -45,109 +51,83 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-100 p-4">
-      <form
-        onSubmit={handleSubmit}
-        className="w-full max-w-sm rounded-lg bg-white p-8 shadow"
-      >
-        <h2 className="text-2xl font-bold text-black">Criar conta</h2>
+    <div className="flex min-h-screen items-center justify-center bg-background py-10">
+      <PageContainer width="narrow">
+        <Card className="p-6 sm:p-8">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            Criar conta
+          </h1>
 
-        <p className="mt-2 text-sm text-gray-600">
-          Cadastre-se para acompanhar o conteúdo da artista.
-        </p>
-
-        <div className="mt-6 space-y-4">
-          <div>
-            <label
-              htmlFor="name"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Nome
-            </label>
-            <input
-              id="name"
-              type="text"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              required
-              className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Senha
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-              minLength={8}
-              className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="confirmPassword"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Confirme a senha
-            </label>
-            <input
-              id="confirmPassword"
-              type="password"
-              value={confirmPassword}
-              onChange={(event) => setConfirmPassword(event.target.value)}
-              required
-              minLength={8}
-              className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
-            />
-          </div>
-        </div>
-
-        {error && (
-          <p className="mt-4 rounded bg-red-100 p-3 text-sm text-red-700">
-            {error}
+          <p className="mt-2 text-sm text-foreground-muted">
+            Cadastre-se para acompanhar o conteúdo da artista.
           </p>
-        )}
 
-        <button
-          type="submit"
-          disabled={submitting}
-          className="mt-6 w-full rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-        >
-          {submitting ? "Criando conta..." : "Criar conta"}
-        </button>
+          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+            <Field id="name" label="Nome">
+              <Input
+                id="name"
+                type="text"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                autoComplete="name"
+              />
+            </Field>
 
-        <p className="mt-4 text-center text-sm text-gray-600">
-          Já possui uma conta?{" "}
-          <Link to="/login" className="font-medium text-blue-600 hover:underline">
-            Entrar
-          </Link>
-        </p>
-      </form>
+            <Field id="email" label="Email">
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                autoComplete="email"
+                required
+              />
+            </Field>
+
+            <Field id="password" label="Senha">
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                autoComplete="new-password"
+                required
+                minLength={8}
+              />
+            </Field>
+
+            <Field id="confirmPassword" label="Confirme a senha">
+              <Input
+                id="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                autoComplete="new-password"
+                required
+                minLength={8}
+              />
+            </Field>
+
+            {error && <Alert variant="error">{error}</Alert>}
+
+            <Button
+              type="submit"
+              fullWidth
+              size="lg"
+              loading={submitting}
+            >
+              {submitting ? "Criando conta..." : "Criar conta"}
+            </Button>
+          </form>
+
+          <p className="mt-4 text-center text-sm text-foreground-muted">
+            Já possui uma conta?{" "}
+            <Link to="/login" className="font-medium text-primary hover:underline">
+              Entrar
+            </Link>
+          </p>
+        </Card>
+      </PageContainer>
     </div>
   )
 }
