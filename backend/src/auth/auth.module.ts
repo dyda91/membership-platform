@@ -11,10 +11,12 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 import { OptionalJwtAuthGuard } from './optional-jwt-auth.guard';
 import { RolesGuard } from './roles.guard';
 import { UsersModule } from '../users/users.module';
+import { TierAccessModule } from '../tier-access/tier-access.module';
 
 @Module({
   imports: [
     forwardRef(() => UsersModule),
+    TierAccessModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

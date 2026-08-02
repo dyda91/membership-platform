@@ -17,6 +17,16 @@ enum Role {
   SUBSCRIBER
 }
 
+enum TierAccessAction {
+  GRANTED
+  RENEWED
+  TIER_CHANGED
+  DATES_CHANGED
+  REVOKED
+  RESTORED
+  MIGRATED
+}
+
 model User {
   id           String        @id @default(uuid())
   email        String        @unique
@@ -25,13 +35,19 @@ model User {
   status       AccountStatus @default(ACTIVE)
   roles        UserRole[]
   tierId       String?
-  tier         Tier?         @relation(fields: [tierId], references: [id])
+  tier         Tier?         @relation(fields: [tierId], references: [id], onDelete: SetNull)
 
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
-  artist       Artist?
-  posts        Post[]
+  artist          Artist?
+  posts           Post[]
+  tierAssignments TierAccessAssignment[]
+  tierAccessEvents TierAccessEvent[]
+  tierAssignmentsCreated TierAccessAssignment[] @relation("TierAccessCreatedBy")
+  tierAssignmentsUpdated TierAccessAssignment[] @relation("TierAccessUpdatedBy")
+  tierAssignmentsRevoked TierAccessAssignment[] @relation("TierAccessRevokedBy")
+  tierAccessActorEvents TierAccessEvent[] @relation("TierAccessActor")
 }
 
 model UserRole {
@@ -41,6 +57,61 @@ model UserRole {
   user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, role])
+}
+
+model TierAccessAssignment {
+  id           String    @id @default(uuid())
+  userId       String    @unique
+  tierId       String
+  startsAt     DateTime
+  expiresAt    DateTime?
+  revokedAt    DateTime?
+  revokedById  String?
+  createdById  String
+  updatedById  String?
+  internalNote String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tier      Tier   @relation(fields: [tierId], references: [id], onDelete: Restrict)
+  createdBy User   @relation("TierAccessCreatedBy", fields: [createdById], references: [id])
+  updatedBy User?  @relation("TierAccessUpdatedBy", fields: [updatedById], references: [id])
+  revokedBy User?  @relation("TierAccessRevokedBy", fields: [revokedById], references: [id])
+  events    TierAccessEvent[]
+
+  @@index([userId])
+  @@index([tierId])
+  @@index([startsAt])
+  @@index([expiresAt])
+}
+
+model TierAccessEvent {
+  id               String    @id @default(uuid())
+  assignmentId     String
+  userId           String
+  action           TierAccessAction
+  previousTierId   String?
+  newTierId        String?
+  previousStartsAt DateTime?
+  newStartsAt      DateTime?
+  previousExpiresAt DateTime?
+  newExpiresAt     DateTime?
+  actorId          String?
+  internalNote     String?
+
+  createdAt DateTime @default(now())
+
+  assignment   TierAccessAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  previousTier Tier?                @relation("PrevTier", fields: [previousTierId], references: [id], onDelete: Restrict)
+  newTier      Tier?                @relation("NewTier", fields: [newTierId], references: [id], onDelete: Restrict)
+  actor        User?                @relation("TierAccessActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([assignmentId])
+  @@index([createdAt])
 }
 
 model Artist {
@@ -131,6 +202,9 @@ model Tier {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  users       User[]
-  posts       Post[]
+  users                 User[]
+  posts                 Post[]
+  tierAccessAssignments TierAccessAssignment[]
+  tierAccessEventsPrev  TierAccessEvent[] @relation("PrevTier")
+  tierAccessEventsNew   TierAccessEvent[] @relation("NewTier")
 }

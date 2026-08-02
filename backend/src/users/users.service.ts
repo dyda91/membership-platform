@@ -11,6 +11,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateOwnProfileDto } from './dto/update-own-profile.dto';
 import {
+  AccessStatusFilter,
   DEFAULT_PAGE_SIZE,
   ListUsersQueryDto,
 } from './dto/list-users-query.dto';
@@ -29,6 +30,14 @@ export interface SafeUser {
   roles: Role[];
   tierId: string | null;
   tier: SafeUserTier | null;
+  tierAccess: {
+    status: string;
+    tier: SafeUserTier | null;
+    startsAt: string | null;
+    expiresAt: string | null;
+    permanent: boolean;
+    expiringSoon: boolean;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -48,14 +57,110 @@ interface CreateUserData {
 type UserWithRelations = User & {
   roles: { role: Role }[];
   tier: { id: string; name: string; priority: number } | null;
+  tierAssignments: {
+    id: string;
+    tierId: string;
+    startsAt: Date;
+    expiresAt: Date | null;
+    revokedAt: Date | null;
+    tier: { id: string; name: string; priority: number } | null;
+  }[];
 };
 
 const userInclude = {
   roles: true,
   tier: true,
+  tierAssignments: {
+    include: { tier: true },
+  },
 } as const;
 
 const HIDDEN_ROLE = Role.SUPER_ADMIN;
+
+type EffectiveAccessState =
+  | 'NONE'
+  | 'SCHEDULED'
+  | 'ACTIVE'
+  | 'EXPIRING_SOON'
+  | 'EXPIRED'
+  | 'REVOKED'
+  | 'PERMANENT';
+
+function computeEffectiveAccess(
+  user: UserWithRelations,
+  now: Date,
+): {
+  status: EffectiveAccessState;
+  tier: UserWithRelations['tier'];
+  startsAt: string | null;
+  expiresAt: string | null;
+  permanent: boolean;
+  expiringSoon: boolean;
+} {
+  const assignment = user.tierAssignments[0];
+
+  if (!assignment || !assignment.tier) {
+    return {
+      status: 'NONE',
+      tier: null,
+      startsAt: null,
+      expiresAt: null,
+      permanent: false,
+      expiringSoon: false,
+    };
+  }
+
+  const tier = assignment.tier;
+  const permanent = assignment.expiresAt === null;
+  const startsAt = assignment.startsAt.toISOString();
+  const expiresAt = assignment.expiresAt?.toISOString() ?? null;
+
+  if (assignment.revokedAt) {
+    return {
+      status: 'REVOKED',
+      tier,
+      startsAt,
+      expiresAt,
+      permanent,
+      expiringSoon: false,
+    };
+  }
+
+  if (now < assignment.startsAt) {
+    return {
+      status: 'SCHEDULED',
+      tier,
+      startsAt,
+      expiresAt,
+      permanent,
+      expiringSoon: false,
+    };
+  }
+
+  if (assignment.expiresAt !== null && now >= assignment.expiresAt) {
+    return {
+      status: 'EXPIRED',
+      tier,
+      startsAt,
+      expiresAt,
+      permanent: false,
+      expiringSoon: false,
+    };
+  }
+
+  const expiringSoon =
+    assignment.expiresAt !== null &&
+    now >= new Date(assignment.expiresAt.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  return {
+    status: permanent ? 'PERMANENT' : expiringSoon ? 'EXPIRING_SOON' : 'ACTIVE',
+    tier,
+    startsAt,
+    expiresAt,
+    permanent,
+    expiringSoon,
+  };
+}
 
 @Injectable()
 export class UsersService {
@@ -81,6 +186,7 @@ export class UsersService {
     const page = query.page ?? 1;
     const limit = query.limit ?? DEFAULT_PAGE_SIZE;
     const skip = (page - 1) * limit;
+    const now = new Date();
 
     const where: Prisma.UserWhereInput = {
       roles: { none: { role: HIDDEN_ROLE } },
@@ -106,6 +212,61 @@ export class UsersService {
     if (query.role && query.role !== Role.SUPER_ADMIN) {
       where.roles = { some: { role: query.role } };
     }
+
+    const applyAccessFilter = (w: Prisma.UserWhereInput) => {
+      if (!query.accessStatus) {
+        return;
+      }
+
+      const hasAssignment = w.tierAssignments === undefined;
+      void hasAssignment;
+
+      switch (query.accessStatus) {
+        case AccessStatusFilter.NONE:
+          w.tierAssignments = { none: {} };
+          break;
+        case AccessStatusFilter.ACTIVE:
+          w.tierAssignments = {
+            some: {
+              revokedAt: null,
+              startsAt: { lte: now },
+              expiresAt: { gt: now },
+            },
+          };
+          break;
+        case AccessStatusFilter.PERMANENT:
+          w.tierAssignments = {
+            some: { revokedAt: null, startsAt: { lte: now }, expiresAt: null },
+          };
+          break;
+        case AccessStatusFilter.SCHEDULED:
+          w.tierAssignments = {
+            some: { revokedAt: null, startsAt: { gt: now } },
+          };
+          break;
+        case AccessStatusFilter.EXPIRING_SOON: {
+          const soon = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+          w.tierAssignments = {
+            some: {
+              revokedAt: null,
+              startsAt: { lte: now },
+              expiresAt: { gt: now, lte: soon },
+            },
+          };
+          break;
+        }
+        case AccessStatusFilter.EXPIRED:
+          w.tierAssignments = {
+            some: { revokedAt: null, expiresAt: { lte: now } },
+          };
+          break;
+        case AccessStatusFilter.REVOKED:
+          w.tierAssignments = { some: { revokedAt: { not: null } } };
+          break;
+      }
+    };
+
+    applyAccessFilter(where);
 
     const [users, total] = await this.prisma.$transaction([
       this.prisma.user.findMany({
@@ -508,6 +669,8 @@ export class UsersService {
   }
 
   private sanitize(user: UserWithRelations): SafeUser {
+    const access = computeEffectiveAccess(user, new Date());
+
     return {
       id: user.id,
       email: user.email,
@@ -516,6 +679,14 @@ export class UsersService {
       roles: user.roles.map((item) => item.role),
       tierId: user.tierId,
       tier: user.tier,
+      tierAccess: {
+        status: access.status,
+        tier: access.tier,
+        startsAt: access.startsAt,
+        expiresAt: access.expiresAt,
+        permanent: access.permanent,
+        expiringSoon: access.expiringSoon,
+      },
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };

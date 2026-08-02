@@ -76,11 +76,35 @@ export class AuthService {
    * Builds the safe current-session payload for /auth/me.
    * It reflects the database-backed request user resolved by the JWT strategy.
    */
-  buildSession(user: AuthenticatedUser) {
+  buildSession(
+    user: AuthenticatedUser,
+    effectiveAccess?: {
+      tier: { id: string; name: string; priority: number } | null;
+      tierPriority: number | null;
+      status: string;
+      startsAt: string | null;
+      expiresAt: string | null;
+      permanent: boolean;
+      expiringSoon: boolean;
+    },
+  ) {
     const roles = user.roles;
     const isSuperAdmin = roles.includes(Role.SUPER_ADMIN);
     const isArtist = roles.includes(Role.ARTIST);
     const isSubscriber = roles.includes(Role.SUBSCRIBER);
+
+    // Effective access reflects the current valid assignment, not stale tier
+    // data from the JWT or compatibility fields. Only granting states expose a
+    // usable tier to the client.
+    const grantingStates = ['ACTIVE', 'EXPIRING_SOON', 'PERMANENT'];
+    const isGranting = effectiveAccess
+      ? grantingStates.includes(effectiveAccess.status)
+      : false;
+
+    const effectiveTier =
+      effectiveAccess && isGranting ? effectiveAccess.tier : null;
+    const effectiveTierId = effectiveTier?.id ?? null;
+    const effectiveTierPriority = effectiveTier?.priority ?? null;
 
     return {
       id: user.id,
@@ -88,9 +112,14 @@ export class AuthService {
       name: user.name,
       status: user.status,
       roles,
-      tier: user.tier,
-      tierId: user.tier?.id ?? null,
-      tierPriority: user.tier?.priority ?? null,
+      tier: effectiveTier,
+      tierId: effectiveTierId,
+      tierPriority: effectiveTierPriority,
+      tierAccessStatus: effectiveAccess?.status ?? 'NONE',
+      tierStartsAt: effectiveAccess?.startsAt ?? null,
+      tierExpiresAt: effectiveAccess?.expiresAt ?? null,
+      tierPermanent: effectiveAccess?.permanent ?? false,
+      tierExpiringSoon: effectiveAccess?.expiringSoon ?? false,
       isSuperAdmin,
       isArtist,
       isSubscriber,

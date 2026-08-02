@@ -5,7 +5,7 @@ import UsersAdminPage from "./UsersAdminPage"
 
 vi.mock("../../services/users", () => ({
   fetchUsers: vi.fn(),
-  assignUserTier: vi.fn(),
+  fetchUser: vi.fn(),
   ACCOUNT_STATUSES: { ACTIVE: "ACTIVE", DISABLED: "DISABLED" },
 }))
 
@@ -13,12 +13,26 @@ vi.mock("../../services/tiers", () => ({
   fetchTiers: vi.fn(),
 }))
 
+vi.mock("../../services/tier-access", () => ({
+  fetchTierAccess: vi.fn(),
+  fetchTierAccessHistory: vi.fn(),
+  grantTierAccess: vi.fn(),
+  renewTierAccess: vi.fn(),
+  revokeTierAccess: vi.fn(),
+  updateTierAccess: vi.fn(),
+  applyAccessToUser: (user: Record<string, unknown>, access: unknown) => ({
+    ...user,
+    tierAccess: access,
+  }),
+}))
+
 vi.mock("../../contexts/AuthContext", () => ({
   useAuth: () => ({ user: { isSuperAdmin: true, roles: ["SUPER_ADMIN"] } }),
 }))
 
-import { assignUserTier, fetchUsers } from "../../services/users"
+import { fetchUser, fetchUsers } from "../../services/users"
 import { fetchTiers } from "../../services/tiers"
+import { fetchTierAccess, grantTierAccess } from "../../services/tier-access"
 
 const makeUser = (overrides: Record<string, unknown> = {}) => ({
   id: "u1",
@@ -28,6 +42,7 @@ const makeUser = (overrides: Record<string, unknown> = {}) => ({
   roles: ["SUBSCRIBER"],
   tierId: null,
   tier: null,
+  tierAccess: { status: "NONE", tier: null, permanent: false, expiringSoon: false },
   createdAt: "2026-01-01T00:00:00.000Z",
   updatedAt: "2026-01-01T00:00:00.000Z",
   ...overrides,
@@ -81,7 +96,6 @@ describe("UsersAdminPage", () => {
 
     expect(screen.getAllByText("Role").length).toBeGreaterThan(0)
     expect(screen.getAllByText(/Assinante/).length).toBeGreaterThan(0)
-    expect(screen.getByDisplayValue("")).toBeInTheDocument()
     expect(screen.getByText("Free · prioridade 0")).toBeInTheDocument()
     expect(screen.getByText("Silver · prioridade 2")).toBeInTheDocument()
     expect(screen.getByText("Gold · prioridade 5")).toBeInTheDocument()
@@ -99,12 +113,24 @@ describe("UsersAdminPage", () => {
       totalPages: 1,
     } as never)
     vi.mocked(fetchTiers).mockResolvedValue(tiers as never)
-    vi.mocked(assignUserTier).mockResolvedValue(
+    vi.mocked(fetchTierAccess).mockResolvedValue({
+      status: "ACTIVE",
+      tier: { id: "t-silver", name: "Silver", priority: 2 },
+      startsAt: "2026-08-01T00:00:00.000Z",
+      expiresAt: "2026-09-01T00:00:00.000Z",
+      permanent: false,
+      expiringSoon: false,
+    } as never)
+    vi.mocked(fetchUser).mockResolvedValue(
       makeUser({
         tierId: "t-silver",
         tier: { id: "t-silver", name: "Silver", priority: 2 },
       }) as never,
     )
+    vi.mocked(grantTierAccess).mockResolvedValue({
+      assignment: {},
+      event: { id: "e1", action: "GRANTED" },
+    } as never)
 
     const user = userEvent.setup()
     render(<UsersAdminPage />)
@@ -115,10 +141,11 @@ describe("UsersAdminPage", () => {
 
     await user.click(screen.getByText("Gerenciar acesso"))
     await user.selectOptions(screen.getByTestId("tier-select"), "t-silver")
-    await user.click(screen.getByText("Salvar tier"))
+    await user.click(screen.getByLabelText("Acesso permanente"))
+    await user.click(screen.getByText("Conceder / salvar"))
 
     await waitFor(() => {
-      expect(screen.getByText("Silver")).toBeInTheDocument()
+      expect(screen.getAllByText("Silver").length).toBeGreaterThan(0)
     })
   })
 

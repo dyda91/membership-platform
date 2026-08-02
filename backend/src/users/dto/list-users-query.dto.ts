@@ -5,6 +5,16 @@ import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 export const MAX_PAGE_SIZE = 100;
 export const DEFAULT_PAGE_SIZE = 20;
 
+export enum AccessStatusFilter {
+  NONE = 'NONE',
+  SCHEDULED = 'SCHEDULED',
+  ACTIVE = 'ACTIVE',
+  EXPIRING_SOON = 'EXPIRING_SOON',
+  EXPIRED = 'EXPIRED',
+  REVOKED = 'REVOKED',
+  PERMANENT = 'PERMANENT',
+}
+
 function toNumber(value: unknown): number {
   return Number(value);
 }
@@ -30,6 +40,10 @@ export class ListUsersQueryDto {
   @IsOptional()
   @IsEnum(Role)
   role?: Role;
+
+  @IsOptional()
+  @IsEnum(AccessStatusFilter)
+  accessStatus?: AccessStatusFilter;
 
   @IsOptional()
   @Transform(({ value }) => toNumber(value))

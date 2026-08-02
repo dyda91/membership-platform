@@ -12,12 +12,23 @@ import { PrismaService } from '../prisma/prisma.service';
 type UserWithRelations = User & {
   roles: { role: Role }[];
   tier: { id: string; name: string; priority: number } | null;
+  tierAssignments: {
+    id: string;
+    tierId: string;
+    startsAt: Date;
+    expiresAt: Date | null;
+    revokedAt: Date | null;
+    tier: { id: string; name: string; priority: number } | null;
+  }[];
 };
 
 const makeUser = (
-  overrides: Partial<Omit<UserWithRelations, 'roles' | 'tier'>> & {
+  overrides: Partial<
+    Omit<UserWithRelations, 'roles' | 'tier' | 'tierAssignments'>
+  > & {
     roles?: { role: Role }[];
     tier?: UserWithRelations['tier'];
+    tierAssignments?: UserWithRelations['tierAssignments'];
   } = {},
 ): UserWithRelations => ({
   id: 'uuid-1',
@@ -28,6 +39,7 @@ const makeUser = (
   roles: [{ role: Role.SUBSCRIBER }],
   tierId: null,
   tier: null,
+  tierAssignments: [],
   createdAt: new Date('2026-01-01'),
   updatedAt: new Date('2026-01-01'),
   ...overrides,
@@ -129,7 +141,11 @@ describe('UsersService', () => {
           name: 'User Name',
           roles: { create: [{ role: Role.SUBSCRIBER }] },
         },
-        include: { roles: true, tier: true },
+        include: {
+          roles: true,
+          tier: true,
+          tierAssignments: { include: { tier: true } },
+        },
       });
       expect(result).not.toHaveProperty('passwordHash');
     });

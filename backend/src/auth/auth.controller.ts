@@ -6,6 +6,7 @@ import type { AuthenticatedUser } from './jwt.strategy';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { UsersService } from '../users/users.service';
+import { TierAccessService } from '../tier-access/tier-access.service';
 import { UpdateOwnProfileDto } from '../users/dto/update-own-profile.dto';
 
 @Controller('auth')
@@ -13,6 +14,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly usersService: UsersService,
+    private readonly tierAccessService: TierAccessService,
   ) {}
 
   @Post('register')
@@ -27,14 +29,14 @@ export class AuthController {
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  me(@CurrentUser() user: AuthenticatedUser) {
-    return this.authService.buildSession(user);
+  async me(@CurrentUser() user: AuthenticatedUser) {
+    return this.buildSession(user);
   }
 
   @Get('profile')
   @UseGuards(JwtAuthGuard)
-  profile(@CurrentUser() user: AuthenticatedUser) {
-    return this.authService.buildSession(user);
+  async profile(@CurrentUser() user: AuthenticatedUser) {
+    return this.buildSession(user);
   }
 
   @Patch('profile')
@@ -44,5 +46,11 @@ export class AuthController {
     @Body() dto: UpdateOwnProfileDto,
   ) {
     return this.usersService.updateOwnProfile(user.id, dto);
+  }
+
+  private async buildSession(user: AuthenticatedUser) {
+    const access = await this.tierAccessService.getEffectiveAccess(user.id);
+
+    return this.authService.buildSession(user, access);
   }
 }

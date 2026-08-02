@@ -4,6 +4,7 @@ import { FeedService } from './feed.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { ArtistProfileService } from '../artist-profile/artist-profile.service';
+import { TierAccessService } from '../tier-access/tier-access.service';
 
 const makeArtistProfile = () => ({
   configured: true,
@@ -59,6 +60,7 @@ describe('FeedService', () => {
   };
   let storage: { getUrl: jest.Mock };
   let artistProfileService: { getPublicProfile: jest.Mock };
+  let tierAccessService: { getContentViewer: jest.Mock };
 
   beforeEach(async () => {
     prisma = {
@@ -71,6 +73,7 @@ describe('FeedService', () => {
     artistProfileService = {
       getPublicProfile: jest.fn().mockResolvedValue(makeArtistProfile()),
     };
+    tierAccessService = { getContentViewer: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -78,6 +81,7 @@ describe('FeedService', () => {
         { provide: PrismaService, useValue: prisma },
         { provide: StorageService, useValue: storage },
         { provide: ArtistProfileService, useValue: artistProfileService },
+        { provide: TierAccessService, useValue: tierAccessService },
       ],
     }).compile();
 
@@ -225,5 +229,39 @@ describe('FeedService', () => {
 
     expect(response.artist.configured).toBe(false);
     expect(response.artist.contactActions).toEqual([]);
+  });
+
+  it('resolves effective access from the centralized service for authenticated users', async () => {
+    prisma.post.findMany.mockResolvedValue([
+      makePost({ tier: { id: 't-gold', name: 'Gold', priority: 5 } }),
+    ]);
+    prisma.post.count.mockResolvedValue(1);
+    storage.getUrl.mockResolvedValue('https://cdn/media');
+    tierAccessService.getContentViewer.mockResolvedValue({
+      roles: [Role.SUBSCRIBER],
+      tierPriority: 5,
+    });
+
+    const response = await service.getFeed(null, 1, 20, 'user-1');
+
+    expect(tierAccessService.getContentViewer).toHaveBeenCalledWith('user-1');
+    expect(response.items[0].mediaAccess).toBe(true);
+  });
+
+  it('locks premium media when effective access is expired', async () => {
+    prisma.post.findMany.mockResolvedValue([
+      makePost({ tier: { id: 't-gold', name: 'Gold', priority: 5 } }),
+    ]);
+    prisma.post.count.mockResolvedValue(1);
+    tierAccessService.getContentViewer.mockResolvedValue({
+      roles: [Role.SUBSCRIBER],
+      tierPriority: null,
+    });
+
+    const response = await service.getFeed(null, 1, 20, 'expired-user');
+
+    expect(response.items[0].mediaAccess).toBe(false);
+    expect(response.items[0].media[0].locked).toBe(true);
+    expect(response.items[0].media[0].url).toBeUndefined();
   });
 });

@@ -14,6 +14,7 @@ import { MediaModule } from './media/media.module';
 import { ArtistsModule } from './artists/artists.module';
 import { FeedModule } from './feed/feed.module';
 import { ArtistProfileModule } from './artist-profile/artist-profile.module';
+import { TierAccessModule } from './tier-access/tier-access.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { ArtistProfileModule } from './artist-profile/artist-profile.module';
     ArtistsModule,
     FeedModule,
     ArtistProfileModule,
+    TierAccessModule,
   ],
   controllers: [AppController],
   providers: [AppService],

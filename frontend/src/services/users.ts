@@ -1,4 +1,5 @@
 import api from "./api"
+import type { TierAccessSummary } from "./tier-access"
 
 export type Role = "SUPER_ADMIN" | "ARTIST" | "SUBSCRIBER"
 
@@ -29,6 +30,7 @@ export interface User {
   roles: Role[]
   tierId: string | null
   tier: UserTier | null
+  tierAccess?: TierAccessSummary
   createdAt: string
   updatedAt: string
 }
@@ -38,6 +40,7 @@ export interface UserListQuery {
   tierId?: string
   status?: AccountStatus
   role?: Role
+  accessStatus?: string
   page?: number
   limit?: number
 }

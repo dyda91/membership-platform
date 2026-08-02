@@ -3,6 +3,7 @@ import { PostStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { ArtistProfileService } from '../artist-profile/artist-profile.service';
+import { TierAccessService } from '../tier-access/tier-access.service';
 import { canAccessContent } from '../common/content-access.util';
 import type { ContentViewer } from '../common/content-access.util';
 import type { FeedArtist, FeedPost, FeedResponse } from './feed.types';
@@ -17,15 +18,23 @@ export class FeedService {
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
     private readonly artistProfileService: ArtistProfileService,
+    private readonly tierAccessService: TierAccessService,
   ) {}
 
   async getFeed(
     viewer: ContentViewer | null,
     page = 1,
     limit = 20,
+    userId?: string,
   ): Promise<FeedResponse> {
     const safePage = Math.max(1, page);
     const safeLimit = Math.min(50, Math.max(1, limit));
+
+    // When an authenticated user is present, resolve effective content access
+    // from the centralized access service rather than stale request tier data.
+    const effectiveViewer = userId
+      ? await this.tierAccessService.getContentViewer(userId)
+      : viewer;
 
     const [posts, total, artist] = await Promise.all([
       this.prisma.post.findMany({
@@ -49,7 +58,7 @@ export class FeedService {
 
     const items: FeedPost[] = await Promise.all(
       posts.map(async (post) => {
-        const access = canAccessContent(viewer, post.tier);
+        const access = canAccessContent(effectiveViewer, post.tier);
 
         const media = await Promise.all(
           post.media.map(async (item) => {

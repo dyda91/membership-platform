@@ -102,7 +102,12 @@ export default function MainLayout() {
                 <span className="text-sm text-gray-600">
                   {user?.email}
                 </span>
-                <TierBadge tier={user?.tier ?? null} />
+                <TierBadge
+                  tier={user?.tier ?? null}
+                  accessStatus={user?.tierAccessStatus}
+                  expiresAt={user?.tierExpiresAt}
+                  permanent={user?.tierPermanent}
+                />
                 <button
                   type="button"
                   onClick={logout}

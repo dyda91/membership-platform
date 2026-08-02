@@ -27,6 +27,7 @@ export class FeedController {
       viewer,
       page ? Number(page) : 1,
       limit ? Number(limit) : 20,
+      user?.id,
     );
   }
 }

@@ -22,6 +22,11 @@ export interface SessionUser {
   tier: { id: string; name: string; priority: number } | null
   tierId: string | null
   tierPriority: number | null
+  tierAccessStatus?: string
+  tierStartsAt?: string | null
+  tierExpiresAt?: string | null
+  tierPermanent?: boolean
+  tierExpiringSoon?: boolean
   isSuperAdmin: boolean
   isArtist: boolean
   isSubscriber: boolean

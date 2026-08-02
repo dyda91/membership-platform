@@ -267,11 +267,21 @@ describe('AuthService', () => {
       tierPriority: null,
     };
 
+    const activeAccess = {
+      tier: { id: 't-silver', name: 'Silver', priority: 2 },
+      tierPriority: 2,
+      status: 'ACTIVE',
+      startsAt: '2026-08-01T00:00:00.000Z',
+      expiresAt: '2026-09-01T00:00:00.000Z',
+      permanent: false,
+      expiringSoon: false,
+    };
+
     it('builds a subscriber session with safe fields', () => {
-      const session = service.buildSession({
-        ...base,
-        roles: [Role.SUBSCRIBER],
-      });
+      const session = service.buildSession(
+        { ...base, roles: [Role.SUBSCRIBER] },
+        activeAccess,
+      );
 
       expect(session).toEqual({
         id: 'uuid-1',
@@ -279,9 +289,14 @@ describe('AuthService', () => {
         name: null,
         status: AccountStatus.ACTIVE,
         roles: [Role.SUBSCRIBER],
-        tier: null,
-        tierId: null,
-        tierPriority: null,
+        tier: activeAccess.tier,
+        tierId: 't-silver',
+        tierPriority: 2,
+        tierAccessStatus: 'ACTIVE',
+        tierStartsAt: '2026-08-01T00:00:00.000Z',
+        tierExpiresAt: '2026-09-01T00:00:00.000Z',
+        tierPermanent: false,
+        tierExpiringSoon: false,
         isSuperAdmin: false,
         isArtist: false,
         isSubscriber: true,
@@ -290,27 +305,52 @@ describe('AuthService', () => {
     });
 
     it('flags an artist session with isArtist true', () => {
-      const session = service.buildSession({
-        ...base,
-        roles: [Role.ARTIST],
-      });
+      const session = service.buildSession(
+        { ...base, roles: [Role.ARTIST] },
+        activeAccess,
+      );
 
       expect(session.isArtist).toBe(true);
       expect(session.isSubscriber).toBe(false);
     });
 
-    it('flags a super-admin session and includes tier priority', () => {
-      const session = service.buildSession({
-        ...base,
-        roles: [Role.SUPER_ADMIN],
-        tierId: 'tier-1',
-        tier: { id: 'tier-1', name: 'Gold', priority: 5 },
-        tierPriority: 5,
-      });
+    it('flags a super-admin session and includes effective tier priority', () => {
+      const session = service.buildSession(
+        { ...base, roles: [Role.SUPER_ADMIN] },
+        {
+          tier: { id: 'tier-1', name: 'Gold', priority: 5 },
+          tierPriority: 5,
+          status: 'PERMANENT',
+          startsAt: '2026-08-01T00:00:00.000Z',
+          expiresAt: null,
+          permanent: true,
+          expiringSoon: false,
+        },
+      );
 
       expect(session.isSuperAdmin).toBe(true);
       expect(session.tierPriority).toBe(5);
       expect(session.tier?.name).toBe('Gold');
+      expect(session.tierPermanent).toBe(true);
+    });
+
+    it('returns no effective tier when access is expired', () => {
+      const session = service.buildSession(
+        { ...base, roles: [Role.SUBSCRIBER] },
+        {
+          tier: null,
+          tierPriority: null,
+          status: 'EXPIRED',
+          startsAt: '2026-08-01T00:00:00.000Z',
+          expiresAt: '2026-08-05T00:00:00.000Z',
+          permanent: false,
+          expiringSoon: false,
+        },
+      );
+
+      expect(session.tier).toBeNull();
+      expect(session.tierPriority).toBeNull();
+      expect(session.tierAccessStatus).toBe('EXPIRED');
     });
   });
 });
