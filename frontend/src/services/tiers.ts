@@ -1,5 +1,13 @@
 import api from "./api"
 
+export interface TierUsage {
+  users: number
+  posts: number
+  tierAccessAssignments: number
+  tierAccessEventsPrev: number
+  tierAccessEventsNew: number
+}
+
 export interface Tier {
   id: string
   name: string
@@ -7,6 +15,7 @@ export interface Tier {
   priority: number
   createdAt: string
   updatedAt: string
+  _count?: TierUsage
 }
 
 export interface CreateTierData {

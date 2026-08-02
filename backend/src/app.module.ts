@@ -15,6 +15,7 @@ import { ArtistsModule } from './artists/artists.module';
 import { FeedModule } from './feed/feed.module';
 import { ArtistProfileModule } from './artist-profile/artist-profile.module';
 import { TierAccessModule } from './tier-access/tier-access.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { TierAccessModule } from './tier-access/tier-access.module';
     FeedModule,
     ArtistProfileModule,
     TierAccessModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [AppService],

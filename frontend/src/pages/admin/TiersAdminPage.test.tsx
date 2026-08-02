@@ -38,7 +38,7 @@ describe("TiersAdminPage", () => {
 
     render(<TiersAdminPage />)
 
-    expect(await screen.findByText("Nenhum tier encontrado")).toBeInTheDocument()
+    expect(await screen.findByText("Nenhum tier configurado")).toBeInTheDocument()
   })
 
   it("deletes a tier after confirmation", async () => {
@@ -59,5 +59,40 @@ describe("TiersAdminPage", () => {
     await waitFor(() => {
       expect(deleteTier).toHaveBeenCalledWith("t2")
     })
+  })
+
+  it("explains cumulative priority access", async () => {
+    vi.mocked(fetchTiers).mockResolvedValue(tiers as never)
+
+    render(<TiersAdminPage />)
+
+    expect(
+      await screen.findByText(/Um membro acessa o conteúdo do próprio tier/),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/prioridade é cumulativa/)).toBeInTheDocument()
+  })
+
+  it("shows a clear conflict message when a referenced tier cannot be deleted", async () => {
+    vi.mocked(fetchTiers).mockResolvedValue(tiers as never)
+    vi.mocked(deleteTier).mockRejectedValue({
+      response: { status: 400 },
+    } as never)
+
+    const user = userEvent.setup()
+    render(<TiersAdminPage />)
+
+    await screen.findByText("Gold")
+
+    const deleteButtons = screen.getAllByRole("button", { name: "Excluir" })
+    await user.click(deleteButtons[1])
+
+    const dialog = screen.getByRole("dialog", { name: "Excluir tier" })
+    await user.click(within(dialog).getByRole("button", { name: "Excluir" }))
+
+    expect(
+      await screen.findByText(
+        /Este tier não pode ser excluído porque está em uso/,
+      ),
+    ).toBeInTheDocument()
   })
 })

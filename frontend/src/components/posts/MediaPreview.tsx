@@ -1,13 +1,26 @@
 import type { Media } from "../../services/media"
 
-export default function MediaPreview({ media }: { media: Media }) {
+interface MediaPreviewProps {
+  media: Media
+  compact?: boolean
+}
+
+export default function MediaPreview({ media, compact = false }: MediaPreviewProps) {
   if (media.type === "IMAGE") {
     return (
       <img
         src={media.url}
         alt={media.originalName}
-        className="max-h-64 w-full rounded object-cover"
+        className={compact ? "h-full w-full object-cover" : "max-h-64 w-full rounded object-cover"}
       />
+    )
+  }
+
+  if (compact) {
+    return (
+      <div className="flex h-full w-full items-center justify-center bg-surface-muted text-xs text-foreground-muted">
+        Vídeo
+      </div>
     )
   }
 

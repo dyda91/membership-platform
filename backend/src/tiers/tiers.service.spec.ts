@@ -29,6 +29,8 @@ describe('TiersService', () => {
     };
     user: { count: jest.Mock };
     post: { count: jest.Mock };
+    tierAccessAssignment: { count: jest.Mock };
+    tierAccessEvent: { count: jest.Mock };
     $transaction: jest.Mock;
   };
 
@@ -43,6 +45,8 @@ describe('TiersService', () => {
       },
       user: { count: jest.fn() },
       post: { count: jest.fn() },
+      tierAccessAssignment: { count: jest.fn() },
+      tierAccessEvent: { count: jest.fn() },
       $transaction: jest.fn(),
     };
     prisma.$transaction.mockImplementation(((arg: unknown) => {
@@ -85,7 +89,7 @@ describe('TiersService', () => {
   });
 
   describe('findAll', () => {
-    it('should return tiers ordered by priority', async () => {
+    it('should return tiers ordered by priority with usage counts', async () => {
       prisma.tier.findMany.mockResolvedValue([
         makeTier(),
         makeTier({ priority: 1 }),
@@ -95,6 +99,17 @@ describe('TiersService', () => {
 
       expect(prisma.tier.findMany).toHaveBeenCalledWith({
         orderBy: { priority: 'asc' },
+        include: {
+          _count: {
+            select: {
+              users: true,
+              posts: true,
+              tierAccessAssignments: true,
+              tierAccessEventsPrev: true,
+              tierAccessEventsNew: true,
+            },
+          },
+        },
       });
       expect(result).toHaveLength(2);
     });
@@ -149,6 +164,8 @@ describe('TiersService', () => {
       prisma.tier.findUnique.mockResolvedValue(makeTier());
       prisma.user.count.mockResolvedValue(0);
       prisma.post.count.mockResolvedValue(0);
+      prisma.tierAccessAssignment.count.mockResolvedValue(0);
+      prisma.tierAccessEvent.count.mockResolvedValue(0);
       prisma.tier.delete.mockResolvedValue(makeTier());
 
       const result = await service.remove('tier-1');
@@ -163,6 +180,8 @@ describe('TiersService', () => {
       prisma.tier.findUnique.mockResolvedValue(makeTier());
       prisma.user.count.mockResolvedValue(3);
       prisma.post.count.mockResolvedValue(0);
+      prisma.tierAccessAssignment.count.mockResolvedValue(0);
+      prisma.tierAccessEvent.count.mockResolvedValue(0);
 
       await expect(service.remove('tier-1')).rejects.toThrow(
         BadRequestException,
@@ -174,6 +193,21 @@ describe('TiersService', () => {
       prisma.tier.findUnique.mockResolvedValue(makeTier());
       prisma.user.count.mockResolvedValue(0);
       prisma.post.count.mockResolvedValue(2);
+      prisma.tierAccessAssignment.count.mockResolvedValue(0);
+      prisma.tierAccessEvent.count.mockResolvedValue(0);
+
+      await expect(service.remove('tier-1')).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(prisma.tier.delete).not.toHaveBeenCalled();
+    });
+
+    it('should prevent deletion when history references the tier', async () => {
+      prisma.tier.findUnique.mockResolvedValue(makeTier());
+      prisma.user.count.mockResolvedValue(0);
+      prisma.post.count.mockResolvedValue(0);
+      prisma.tierAccessAssignment.count.mockResolvedValue(0);
+      prisma.tierAccessEvent.count.mockResolvedValue(1);
 
       await expect(service.remove('tier-1')).rejects.toThrow(
         BadRequestException,

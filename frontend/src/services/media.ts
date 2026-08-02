@@ -61,3 +61,12 @@ export async function deleteMedia(id: string) {
 
   return response.data
 }
+
+export async function reorderMedia(postId: string, mediaIds: string[]) {
+  const response = await api.patch<Media[]>(`/media/reorder`, {
+    postId,
+    mediaIds,
+  })
+
+  return response.data
+}

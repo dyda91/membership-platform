@@ -6,6 +6,7 @@ import {
   Get,
   Header,
   Param,
+  Patch,
   Post,
   Query,
   Res,
@@ -25,6 +26,7 @@ import type { AuthenticatedUser } from '../auth/jwt.strategy';
 import { MediaService } from './media.service';
 import { UploadMediaDto } from './dto/upload-media.dto';
 import { AssociateMediaDto } from './dto/associate-media.dto';
+import { ReorderMediaDto } from './dto/reorder-media.dto';
 import type { UploadFile } from '../common/upload-file.type';
 import type { ContentViewer } from '../common/content-access.util';
 import { MAX_VIDEO_SIZE } from '../storage/storage.service';
@@ -60,6 +62,16 @@ export class MediaController {
     @Body() associateMediaDto: AssociateMediaDto,
   ) {
     return this.mediaService.associate(associateMediaDto.postId, id);
+  }
+
+  @Patch('reorder')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.SUPER_ADMIN, Role.ARTIST)
+  reorder(@Body() reorderMediaDto: ReorderMediaDto) {
+    return this.mediaService.reorder(
+      reorderMediaDto.postId,
+      reorderMediaDto.mediaIds,
+    );
   }
 
   @Get()

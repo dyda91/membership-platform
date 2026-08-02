@@ -22,6 +22,8 @@ import Button from "../../components/ui/Button"
 import Alert from "../../components/ui/Alert"
 import EmptyState from "../../components/ui/EmptyState"
 import ConfirmDialog from "../../components/ui/ConfirmDialog"
+import Skeleton from "../../components/ui/Skeleton"
+import TierAdminCard from "../../components/tier/TierAdminCard"
 
 const EMPTY_FORM: CreateTierData = {
   name: "",
@@ -47,15 +49,16 @@ function errorMessage(error: unknown) {
   return "Não foi possível processar a solicitação. Tente novamente."
 }
 
-function formatDate(value: string) {
-  return new Date(value).toLocaleDateString("pt-BR")
-}
-
 export default function TiersAdminPage() {
   const [tiers, setTiers] = useState<Tier[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [form, setForm] = useState<CreateTierData>(EMPTY_FORM)
+  const [fieldErrors, setFieldErrors] = useState<{
+    name?: string
+    description?: string
+    priority?: string
+  }>({})
   const [editing, setEditing] = useState<Tier | null>(null)
   const [deleting, setDeleting] = useState<Tier | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -79,6 +82,7 @@ export default function TiersAdminPage() {
   function resetForm() {
     setForm(EMPTY_FORM)
     setEditing(null)
+    setFieldErrors({})
   }
 
   function startEdit(tier: Tier) {
@@ -88,13 +92,42 @@ export default function TiersAdminPage() {
       description: tier.description,
       priority: tier.priority,
     })
+    setFieldErrors({})
     setError(null)
+  }
+
+  function validateForm(): { name?: string; description?: string; priority?: string } {
+    const errors: { name?: string; description?: string; priority?: string } = {}
+
+    if (!form.name.trim()) {
+      errors.name = "Informe um nome para o tier."
+    }
+
+    if (!form.description.trim()) {
+      errors.description = "Informe uma descrição."
+    }
+
+    if ((form.priority ?? 0) < 0) {
+      errors.priority = "A prioridade não pode ser negativa."
+    }
+
+    return errors
   }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    setSubmitting(true)
     setError(null)
+
+    const errors = validateForm()
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors)
+
+      return
+    }
+
+    setFieldErrors({})
+    setSubmitting(true)
 
     try {
       if (editing) {
@@ -128,7 +161,15 @@ export default function TiersAdminPage() {
       setTiers((current) => current.filter((tier) => tier.id !== deleting.id))
       setDeleting(null)
     } catch (requestError) {
-      setError(errorMessage(requestError))
+      const status = (requestError as AxiosError)?.response?.status
+
+      if (status === 400) {
+        setError(
+          "Este tier não pode ser excluído porque está em uso por membros, posts ou histórico de acesso.",
+        )
+      } else {
+        setError(errorMessage(requestError))
+      }
     } finally {
       setSubmitting(false)
     }
@@ -137,7 +178,11 @@ export default function TiersAdminPage() {
   if (loading) {
     return (
       <PageContainer width="wide">
-        <p className="text-sm text-foreground-muted">Carregando tiers...</p>
+        <Skeleton className="h-10 w-1/3" />
+        <div className="mt-6 space-y-4">
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
+        </div>
       </PageContainer>
     )
   }
@@ -149,58 +194,72 @@ export default function TiersAdminPage() {
         description="Crie e gerencie os níveis de acesso da plataforma."
       />
 
+      <Alert variant="info" title="Como funciona a prioridade">
+        Um membro acessa o conteúdo do próprio tier e de todos os tiers de
+        prioridade inferior. A prioridade é cumulativa e não representa preço.
+      </Alert>
+
       {error && (
-        <div className="mb-4">
+        <div className="mt-4">
           <Alert variant="error">{error}</Alert>
         </div>
       )}
 
-      <Card>
+      <Card className="mt-6">
         <form onSubmit={handleSubmit} className="space-y-5 p-6">
           <h2 className="text-lg font-semibold text-foreground">
             {editing ? "Editar tier" : "Novo tier"}
           </h2>
 
           <div className="grid gap-4 sm:grid-cols-3">
-            <Field id="name" label="Nome">
+            <Field id="name" label="Nome" error={fieldErrors.name}>
               <Input
                 id="name"
                 type="text"
                 value={form.name}
-                onChange={(event) =>
+                invalid={Boolean(fieldErrors.name)}
+                onChange={(event) => {
                   setForm((current) => ({ ...current, name: event.target.value }))
-                }
-                required
+                  setFieldErrors((current) => ({ ...current, name: undefined }))
+                }}
               />
             </Field>
 
-            <Field id="priority" label="Prioridade">
+            <Field
+              id="priority"
+              label="Prioridade"
+              help="Quanto maior, mais conteúdo o tier inclui."
+              error={fieldErrors.priority}
+            >
               <Input
                 id="priority"
                 type="number"
                 min={0}
                 value={form.priority}
-                onChange={(event) =>
+                invalid={Boolean(fieldErrors.priority)}
+                onChange={(event) => {
                   setForm((current) => ({
                     ...current,
                     priority: Number(event.target.value),
                   }))
-                }
+                  setFieldErrors((current) => ({ ...current, priority: undefined }))
+                }}
               />
             </Field>
 
-            <Field id="description" label="Descrição" className="sm:col-span-3">
+            <Field id="description" label="Descrição" className="sm:col-span-3" error={fieldErrors.description}>
               <Input
                 id="description"
                 type="text"
                 value={form.description}
-                onChange={(event) =>
+                invalid={Boolean(fieldErrors.description)}
+                onChange={(event) => {
                   setForm((current) => ({
                     ...current,
                     description: event.target.value,
                   }))
-                }
-                required
+                  setFieldErrors((current) => ({ ...current, description: undefined }))
+                }}
               />
             </Field>
           </div>
@@ -223,73 +282,23 @@ export default function TiersAdminPage() {
         </form>
       </Card>
 
-      <div className="mt-6 overflow-hidden rounded-lg border border-border bg-surface shadow-card">
+      <div className="mt-8 space-y-4">
+        <h2 className="text-lg font-semibold text-foreground">Tiers</h2>
+
         {tiers.length === 0 ? (
           <EmptyState
-            className="m-4 border-0"
-            title="Nenhum tier encontrado"
+            title="Nenhum tier configurado"
             description="Crie o primeiro nível de acesso acima."
           />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-border">
-              <thead className="bg-surface-muted">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-foreground-muted">
-                    Nome
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-foreground-muted">
-                    Descrição
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-foreground-muted">
-                    Prioridade
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-foreground-muted">
-                    Criado em
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wide text-foreground-muted">
-                    Ações
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {tiers.map((tier) => (
-                  <tr key={tier.id} className="hover:bg-surface-muted">
-                    <td className="px-6 py-4 text-sm font-medium text-foreground">
-                      {tier.name}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-foreground-muted">
-                      {tier.description}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-foreground-muted">
-                      {tier.priority}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-foreground-muted">
-                      {formatDate(tier.createdAt)}
-                    </td>
-                    <td className="px-6 py-4 text-right text-sm">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => startEdit(tier)}
-                        >
-                          Editar
-                        </Button>
-                        <Button
-                          variant="danger"
-                          size="sm"
-                          onClick={() => setDeleting(tier)}
-                        >
-                          Excluir
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          tiers.map((tier) => (
+            <TierAdminCard
+              key={tier.id}
+              tier={tier}
+              onEdit={startEdit}
+              onDelete={setDeleting}
+            />
+          ))
         )}
       </div>
 
@@ -300,8 +309,7 @@ export default function TiersAdminPage() {
           deleting ? (
             <>
               Tem certeza que deseja excluir o tier{" "}
-              <span className="font-medium text-foreground">{deleting.name}</span>
-              ?
+              <span className="font-medium text-foreground">{deleting.name}</span>?
             </>
           ) : undefined
         }

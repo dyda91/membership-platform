@@ -128,6 +128,45 @@ export class MediaService {
     );
   }
 
+  /**
+   * Persists an explicit media order for a post. Every media item currently
+   * associated with the post must be present exactly once; positions are
+   * reassigned sequentially. Returns the post media in the new order.
+   */
+  async reorder(postId: string, mediaIds: string[]) {
+    const post = await this.prisma.post.findUnique({
+      where: { id: postId },
+    });
+
+    if (!post) {
+      throw new BadRequestException('Post not found');
+    }
+
+    const current = await this.prisma.media.findMany({
+      where: { postId },
+      select: { id: true },
+    });
+
+    const validIds = new Set(current.map((item) => item.id));
+
+    if (
+      mediaIds.length !== validIds.size ||
+      mediaIds.some((id) => !validIds.has(id))
+    ) {
+      throw new BadRequestException(
+        'Invalid media order: all post media must be included exactly once',
+      );
+    }
+
+    await this.prisma.$transaction(
+      mediaIds.map((id, index) =>
+        this.prisma.media.update({ where: { id }, data: { position: index } }),
+      ),
+    );
+
+    return this.findByPost(postId);
+  }
+
   async associate(postId: string, mediaId: string) {
     const post = await this.prisma.post.findUnique({
       where: { id: postId },

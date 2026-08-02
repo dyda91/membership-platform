@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import type { FormEvent } from "react"
 import type { AxiosError } from "axios"
 
 import {
   ACCOUNT_STATUSES,
-  fetchUser,
   fetchUsers,
 } from "../../services/users"
 import type {
@@ -13,41 +11,46 @@ import type {
   User,
   UserListQuery,
 } from "../../services/users"
-import {
-  applyAccessToUser,
-  fetchTierAccess,
-  fetchTierAccessHistory,
-  grantTierAccess,
-  renewTierAccess,
-  revokeTierAccess,
-  updateTierAccess,
-} from "../../services/tier-access"
-import type {
-  TierAccessHistoryEvent,
-  TierAccessStatus,
-} from "../../services/tier-access"
 import { fetchTiers } from "../../services/tiers"
 import type { Tier } from "../../services/tiers"
 import { useAuth } from "../../contexts/AuthContext"
 import PageContainer from "../../components/ui/PageContainer"
 import PageHeader from "../../components/ui/PageHeader"
 import Card from "../../components/ui/Card"
-import Field from "../../components/ui/Field"
 import Input from "../../components/ui/Input"
 import Select from "../../components/ui/Select"
-import Checkbox from "../../components/ui/Checkbox"
 import Button from "../../components/ui/Button"
 import Alert from "../../components/ui/Alert"
 import EmptyState from "../../components/ui/EmptyState"
-import Dialog from "../../components/ui/Dialog"
-import Badge from "../../components/ui/Badge"
-import {
-  AccessStatusBadge,
-  AccountStatusBadge,
-  RoleBadge,
-} from "../../components/ui/status-badges"
+import Skeleton from "../../components/ui/Skeleton"
+import { useMediaQuery } from "../../hooks/useMediaQuery"
+import UsersDesktopTable from "../../components/admin/UsersDesktopTable"
+import UsersMobileCards from "../../components/admin/UsersMobileCards"
+import ActiveFilterChips from "../../components/admin/ActiveFilterChips"
+import type { FilterChip } from "../../components/admin/ActiveFilterChips"
+import ManageAccessDialog from "../../components/admin/ManageAccessDialog"
 
 const PAGE_SIZE = 10
+
+const STATUS_OPTIONS: { value: string; label: string }[] = [
+  { value: ACCOUNT_STATUSES.ACTIVE, label: "Ativo" },
+  { value: ACCOUNT_STATUSES.DISABLED, label: "Desativado" },
+]
+
+const ACCESS_OPTIONS: { value: string; label: string }[] = [
+  { value: "ACTIVE", label: "Ativo" },
+  { value: "EXPIRING_SOON", label: "Expirando em breve" },
+  { value: "EXPIRED", label: "Expirado" },
+  { value: "PERMANENT", label: "Permanente" },
+  { value: "SCHEDULED", label: "Agendado" },
+  { value: "REVOKED", label: "Revogado" },
+  { value: "NONE", label: "Sem acesso" },
+]
+
+const ROLE_OPTIONS: { value: string; label: string }[] = [
+  { value: "SUBSCRIBER", label: "Assinante" },
+  { value: "ARTIST", label: "Artista" },
+]
 
 function errorMessage(error: unknown) {
   const status = (error as AxiosError)?.response?.status
@@ -63,13 +66,10 @@ function errorMessage(error: unknown) {
   return "Não foi possível processar a solicitação. Tente novamente."
 }
 
-function formatDate(value: string) {
-  return new Date(value).toLocaleDateString("pt-BR")
-}
-
 export default function UsersAdminPage() {
   const { user: sessionUser } = useAuth()
   const isSuperAdmin = sessionUser?.isSuperAdmin ?? false
+  const isDesktop = useMediaQuery("(min-width: 640px)")
 
   const [users, setUsers] = useState<User[]>([])
   const [tiers, setTiers] = useState<Tier[]>([])
@@ -83,7 +83,6 @@ export default function UsersAdminPage() {
   const [totalPages, setTotalPages] = useState(0)
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [loadingTiers, setLoadingTiers] = useState(true)
   const [tierError, setTierError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [selected, setSelected] = useState<User | null>(null)
@@ -118,7 +117,6 @@ export default function UsersAdminPage() {
   }, [query])
 
   const loadTiers = useCallback(async () => {
-    setLoadingTiers(true)
     setTierError(null)
 
     try {
@@ -126,8 +124,6 @@ export default function UsersAdminPage() {
       setTiers(data)
     } catch {
       setTierError("Não foi possível carregar os tiers.")
-    } finally {
-      setLoadingTiers(false)
     }
   }, [])
 
@@ -164,6 +160,75 @@ export default function UsersAdminPage() {
     )
     setSelected(updated)
   }
+
+  const activeChips: FilterChip[] = useMemo(() => {
+    const chips: FilterChip[] = []
+
+    if (search) {
+      chips.push({
+        key: "search",
+        label: `Busca: ${search}`,
+        onRemove: () => {
+          setSearchInput("")
+          setSearch("")
+          setPage(1)
+        },
+      })
+    }
+
+    if (tierFilter) {
+      chips.push({
+        key: "tier",
+        label: `Tier: ${tiers.find((tier) => tier.id === tierFilter)?.name ?? tierFilter}`,
+        onRemove: () => {
+          setTierFilter("")
+          setPage(1)
+        },
+      })
+    }
+
+    if (statusFilter) {
+      chips.push({
+        key: "status",
+        label: `Status: ${STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label ?? statusFilter}`,
+        onRemove: () => {
+          setStatusFilter("")
+          setPage(1)
+        },
+      })
+    }
+
+    if (accessFilter) {
+      chips.push({
+        key: "access",
+        label: `Acesso: ${ACCESS_OPTIONS.find((o) => o.value === accessFilter)?.label ?? accessFilter}`,
+        onRemove: () => {
+          setAccessFilter("")
+          setPage(1)
+        },
+      })
+    }
+
+    if (roleFilter) {
+      chips.push({
+        key: "role",
+        label: `Role: ${ROLE_OPTIONS.find((o) => o.value === roleFilter)?.label ?? roleFilter}`,
+        onRemove: () => {
+          setRoleFilter("")
+          setPage(1)
+        },
+      })
+    }
+
+    return chips
+  }, [search, tierFilter, statusFilter, accessFilter, roleFilter, tiers])
+
+  const hasActiveFilters =
+    search !== "" ||
+    tierFilter !== "" ||
+    statusFilter !== "" ||
+    accessFilter !== "" ||
+    roleFilter !== ""
 
   return (
     <PageContainer width="wide">
@@ -223,8 +288,11 @@ export default function UsersAdminPage() {
               }}
             >
               <option value="">Todos os status</option>
-              <option value={ACCOUNT_STATUSES.ACTIVE}>Ativo</option>
-              <option value={ACCOUNT_STATUSES.DISABLED}>Desativado</option>
+              {STATUS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </Select>
           </div>
 
@@ -238,13 +306,11 @@ export default function UsersAdminPage() {
               }}
             >
               <option value="">Todos os acessos</option>
-              <option value="ACTIVE">Ativo</option>
-              <option value="EXPIRING_SOON">Expirando em breve</option>
-              <option value="EXPIRED">Expirado</option>
-              <option value="PERMANENT">Permanente</option>
-              <option value="SCHEDULED">Agendado</option>
-              <option value="REVOKED">Revogado</option>
-              <option value="NONE">Sem acesso</option>
+              {ACCESS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </Select>
           </div>
 
@@ -259,19 +325,30 @@ export default function UsersAdminPage() {
               disabled={!isSuperAdmin}
             >
               <option value="">Todas as roles</option>
-              <option value="SUBSCRIBER">Assinante</option>
-              <option value="ARTIST">Artista</option>
+              {ROLE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </Select>
           </div>
         </div>
 
         <div className="mt-3 flex flex-wrap gap-2">
           <Button onClick={applySearch}>Buscar</Button>
-          <Button variant="outline" onClick={clearFilters}>
+          <Button
+            variant="outline"
+            onClick={clearFilters}
+            disabled={!hasActiveFilters && searchInput === ""}
+          >
             Limpar busca e filtros
           </Button>
         </div>
       </Card>
+
+      <div className="mt-3">
+        <ActiveFilterChips chips={activeChips} onClearAll={clearFilters} />
+      </div>
 
       {tierError && (
         <div className="mt-4">
@@ -294,88 +371,30 @@ export default function UsersAdminPage() {
 
       <div className="mt-6 overflow-hidden rounded-lg border border-border bg-surface shadow-card">
         {loading ? (
-          <p className="p-6 text-sm text-foreground-muted">Carregando usuários...</p>
+          <div className="space-y-3 p-6">
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+          </div>
         ) : users.length === 0 ? (
           <EmptyState
             className="m-4 border-0"
             title="Nenhum usuário encontrado"
-            description="Ajuste a busca ou limpe os filtros para ver mais resultados."
+            description={
+              hasActiveFilters
+                ? "Nenhum usuário corresponde aos filtros ativos. Ajuste a busca ou limpe os filtros."
+                : "Ainda não há membros cadastrados."
+            }
+          />
+        ) : isDesktop ? (
+          <UsersDesktopTable
+            users={users}
+            onManage={setSelected}
           />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-border">
-              <thead className="bg-surface-muted">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-foreground-muted">
-                    Usuário
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-foreground-muted">
-                    Email
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-foreground-muted">
-                    Role
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-foreground-muted">
-                    Tier
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-foreground-muted">
-                    Acesso
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-foreground-muted">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-foreground-muted">
-                    Criado em
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wide text-foreground-muted">
-                    Ações
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {users.map((user) => (
-                  <tr key={user.id} className="hover:bg-surface-muted">
-                    <td className="px-6 py-4 text-sm font-medium text-foreground">
-                      {user.name || "—"}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-foreground-muted">
-                      {user.email}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-foreground-muted">
-                      <div className="flex flex-wrap gap-1.5">
-                        {user.roles.map((role) => (
-                          <RoleBadge key={role} role={role} />
-                        ))}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-foreground-muted">
-                      {user.tierAccess?.tier?.name ?? user.tier?.name ?? "Gratuito"}
-                    </td>
-                    <td className="px-6 py-4 text-sm">
-                      <AccessStatusBadge
-                        status={(user.tierAccess?.status ?? "NONE") as TierAccessStatus}
-                      />
-                    </td>
-                    <td className="px-6 py-4 text-sm">
-                      <AccountStatusBadge status={user.status} />
-                    </td>
-                    <td className="px-6 py-4 text-sm text-foreground-muted">
-                      {formatDate(user.createdAt)}
-                    </td>
-                    <td className="px-6 py-4 text-right text-sm">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setSelected(user)}
-                      >
-                        Gerenciar acesso
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <UsersMobileCards
+            users={users}
+            onManage={setSelected}
+          />
         )}
       </div>
 
@@ -405,526 +424,14 @@ export default function UsersAdminPage() {
       </div>
 
       {selected && (
-        <AccessDialog
+        <ManageAccessDialog
           user={selected}
           tiers={tiers}
-          loadingTiers={loadingTiers}
-          tierError={tierError}
           isSuperAdmin={isSuperAdmin}
-          onRetryTiers={() => void loadTiers()}
           onClose={() => setSelected(null)}
           onUpdated={handleUpdated}
         />
       )}
     </PageContainer>
   )
-}
-
-interface AccessDialogProps {
-  user: User
-  tiers: Tier[]
-  loadingTiers: boolean
-  tierError: string | null
-  isSuperAdmin: boolean
-  onRetryTiers: () => void
-  onClose: () => void
-  onUpdated: (user: User) => void
-}
-
-const ACTION_LABELS: Record<string, string> = {
-  GRANTED: "Concedido",
-  RENEWED: "Renovado",
-  TIER_CHANGED: "Tier alterado",
-  DATES_CHANGED: "Datas alteradas",
-  REVOKED: "Revogado",
-  RESTORED: "Restaurado",
-  MIGRATED: "Migrado",
-}
-
-function localDateInput(value: string | null | undefined): string {
-  if (!value) {
-    return ""
-  }
-
-  const d = new Date(value)
-
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, "0")
-  const day = String(d.getDate()).padStart(2, "0")
-
-  return `${y}-${m}-${day}`
-}
-
-function toUtcEndOfDay(value: string): string {
-  return `${value}T23:59:59.000Z`
-}
-
-function AccessDialog({
-  user,
-  tiers,
-  loadingTiers,
-  tierError,
-  isSuperAdmin,
-  onRetryTiers,
-  onClose,
-  onUpdated,
-}: AccessDialogProps) {
-  const [access, setAccess] = useState(user.tierAccess ?? null)
-  const [tierId, setTierId] = useState<string>(
-    user.tierAccess?.tier?.id ?? user.tierId ?? "",
-  )
-  const [startsAt, setStartsAt] = useState<string>(
-    localDateInput(user.tierAccess?.startsAt) || new Date().toISOString().slice(0, 10),
-  )
-  const [expiresAt, setExpiresAt] = useState<string>(
-    localDateInput(user.tierAccess?.expiresAt),
-  )
-  const [permanent, setPermanent] = useState<boolean>(
-    user.tierAccess?.permanent ?? false,
-  )
-  const [internalNote, setInternalNote] = useState("")
-  const [renewExpiresAt, setRenewExpiresAt] = useState("")
-  const [revokeNote, setRevokeNote] = useState("")
-  const [confirmRevoke, setConfirmRevoke] = useState(false)
-  const [showHistory, setShowHistory] = useState(false)
-  const [history, setHistory] = useState<TierAccessHistoryEvent[] | null>(null)
-  const [loadingHistory, setLoadingHistory] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
-
-  async function reloadAccess() {
-    const summary = await fetchTierAccess(user.id)
-    setAccess(summary)
-    setTierId(summary.tier?.id ?? "")
-    setStartsAt(localDateInput(summary.startsAt) || new Date().toISOString().slice(0, 10))
-    setExpiresAt(localDateInput(summary.expiresAt))
-    setPermanent(summary.permanent)
-  }
-
-  function validateDates() {
-    if (!startsAt) {
-      return "Informe a data de início."
-    }
-
-    if (!permanent && !expiresAt) {
-      return "Informe a data de expiração ou marque acesso permanente."
-    }
-
-    if (!permanent && expiresAt && expiresAt <= startsAt) {
-      return "A data de expiração deve ser posterior ao início."
-    }
-
-    return null
-  }
-
-  async function handleGrant(event: FormEvent) {
-    event.preventDefault()
-    setError(null)
-    setSuccess(null)
-
-    const invalid = validateDates()
-
-    if (invalid) {
-      setError(invalid)
-
-      return
-    }
-
-    setBusy(true)
-
-    try {
-      await grantTierAccess(user.id, {
-        tierId,
-        startsAt: `${startsAt}T00:00:00.000Z`,
-        expiresAt: permanent ? null : toUtcEndOfDay(expiresAt),
-        permanent,
-        internalNote: internalNote || undefined,
-      })
-      const updated = await fetchUserWithAccess(user.id)
-      onUpdated(updated)
-      await reloadAccess()
-      setSuccess("Acesso concedido com sucesso.")
-    } catch (requestError) {
-      setError(errorMessage(requestError))
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function handleRenew() {
-    setError(null)
-    setSuccess(null)
-
-    if (!renewExpiresAt) {
-      setError("Informe a nova data de expiração.")
-
-      return
-    }
-
-    setBusy(true)
-
-    try {
-      await renewTierAccess(user.id, {
-        expiresAt: toUtcEndOfDay(renewExpiresAt),
-        permanent: false,
-        internalNote: internalNote || undefined,
-      })
-      const updated = await fetchUserWithAccess(user.id)
-      onUpdated(updated)
-      await reloadAccess()
-      setRenewExpiresAt("")
-      setSuccess("Acesso renovado com sucesso.")
-    } catch (requestError) {
-      setError(errorMessage(requestError))
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function handleRevoke() {
-    setError(null)
-    setSuccess(null)
-    setBusy(true)
-
-    try {
-      await revokeTierAccess(user.id, revokeNote || undefined)
-      const updated = await fetchUserWithAccess(user.id)
-      onUpdated(updated)
-      await reloadAccess()
-      setConfirmRevoke(false)
-      setRevokeNote("")
-      setSuccess("Acesso revogado.")
-    } catch (requestError) {
-      setError(errorMessage(requestError))
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function handleSaveChanges() {
-    setError(null)
-    setSuccess(null)
-
-    const invalid = validateDates()
-
-    if (invalid) {
-      setError(invalid)
-
-      return
-    }
-
-    setBusy(true)
-
-    try {
-      await updateTierAccess(user.id, {
-        tierId: tierId || undefined,
-        startsAt: `${startsAt}T00:00:00.000Z`,
-        expiresAt: permanent ? null : toUtcEndOfDay(expiresAt),
-        permanent,
-        internalNote: internalNote || undefined,
-      })
-      const updated = await fetchUserWithAccess(user.id)
-      onUpdated(updated)
-      await reloadAccess()
-      setSuccess("Acesso atualizado com sucesso.")
-    } catch (requestError) {
-      setError(errorMessage(requestError))
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function handleToggleHistory() {
-    if (!showHistory) {
-      setLoadingHistory(true)
-      setError(null)
-
-      try {
-        const data = await fetchTierAccessHistory(user.id)
-        setHistory(data)
-      } catch (requestError) {
-        setError(errorMessage(requestError))
-      } finally {
-        setLoadingHistory(false)
-      }
-    }
-
-    setShowHistory((current) => !current)
-  }
-
-  const accessStatus: TierAccessStatus = access?.status ?? "NONE"
-
-  return (
-    <Dialog
-      open
-      onClose={onClose}
-      title="Gerenciar acesso"
-      description={user.email}
-      size="md"
-      footer={
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={onClose}>
-            Fechar
-          </Button>
-        </div>
-      }
-    >
-      <div className="space-y-4">
-        <div>
-          <span className="block text-sm font-medium text-foreground">Role</span>
-          <div className="mt-1 flex flex-wrap gap-1.5">
-            {user.roles.map((role) => (
-              <RoleBadge key={role} role={role} />
-            ))}
-          </div>
-          <p className="mt-1 text-xs text-foreground-muted">
-            {isSuperAdmin
-              ? "Role atribuída. A atribuição de ARTIST/SUPER_ADMIN é separada e restrita."
-              : "Role somente leitura."}
-          </p>
-        </div>
-
-        <div className="rounded-md border border-border p-3">
-          <span className="block text-sm font-medium text-foreground">
-            Acesso atual
-          </span>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <span className="text-sm text-foreground">
-              {access?.tier?.name ?? "Gratuito"}
-            </span>
-            <AccessStatusBadge status={accessStatus} />
-            {access?.expiresAt && (
-              <span className="text-xs text-foreground-muted">
-                até {formatDate(access.expiresAt)}
-              </span>
-            )}
-            {access?.permanent && (
-              <Badge variant="accent">Acesso permanente</Badge>
-            )}
-          </div>
-        </div>
-
-        <form onSubmit={handleGrant} className="space-y-3">
-          <Field id="tierId" label="Tier de acesso">
-            {loadingTiers ? (
-              <p className="text-sm text-foreground-muted">Carregando tiers...</p>
-            ) : tierError ? (
-              <div>
-                <p className="text-sm text-warning-foreground">{tierError}</p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={onRetryTiers}
-                  className="mt-1"
-                >
-                  Tentar novamente
-                </Button>
-              </div>
-            ) : (
-              <Select
-                id="tierId"
-                data-testid="tier-select"
-                value={tierId}
-                onChange={(event) => setTierId(event.target.value)}
-                disabled={busy}
-              >
-                <option value="">Gratuito (sem tier)</option>
-                {tiers.map((tier) => (
-                  <option key={tier.id} value={tier.id}>
-                    {tier.name} · prioridade {tier.priority}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </Field>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Field id="startsAt" label="Início">
-              <Input
-                id="startsAt"
-                type="date"
-                value={startsAt}
-                onChange={(event) => setStartsAt(event.target.value)}
-                disabled={busy}
-              />
-            </Field>
-            <Field id="expiresAt" label="Expiração">
-              <Input
-                id="expiresAt"
-                type="date"
-                value={expiresAt}
-                onChange={(event) => setExpiresAt(event.target.value)}
-                disabled={busy || permanent}
-              />
-            </Field>
-          </div>
-
-          <Checkbox
-            id="permanent"
-            label="Acesso permanente"
-            checked={permanent}
-            onChange={(event) => setPermanent(event.target.checked)}
-            disabled={busy}
-          />
-
-          <Field id="internalNote" label="Observação interna">
-            <Input
-              id="internalNote"
-              type="text"
-              value={internalNote}
-              onChange={(event) => setInternalNote(event.target.value)}
-              placeholder="Ex.: pagamento confirmado via WhatsApp"
-            />
-          </Field>
-
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="submit"
-              loading={busy}
-              disabled={loadingTiers}
-            >
-              {busy ? "Salvando..." : "Conceder / salvar"}
-            </Button>
-            {access && accessStatus !== "NONE" && accessStatus !== "REVOKED" && (
-              <>
-                <Button
-                  variant="success"
-                  onClick={() => void handleRenew()}
-                  disabled={busy}
-                >
-                  Renovar
-                </Button>
-                <Button
-                  variant="danger"
-                  onClick={() => setConfirmRevoke(true)}
-                  disabled={busy}
-                >
-                  Revogar
-                </Button>
-              </>
-            )}
-            {access && accessStatus !== "NONE" && (
-              <Button
-                variant="warning"
-                onClick={() => void handleSaveChanges()}
-                disabled={busy}
-              >
-                Salvar alterações
-              </Button>
-            )}
-          </div>
-
-          {accessStatus !== "NONE" && accessStatus !== "REVOKED" && (
-            <Field id="renewExpiresAt" label="Nova expiração (renovar)">
-              <Input
-                id="renewExpiresAt"
-                type="date"
-                value={renewExpiresAt}
-                onChange={(event) => setRenewExpiresAt(event.target.value)}
-              />
-            </Field>
-          )}
-        </form>
-
-        {confirmRevoke && (
-          <div className="rounded-md border border-danger/30 bg-danger-muted/40 p-3">
-            <p className="text-sm font-medium text-danger-foreground">
-              Confirmar revogação do acesso?
-            </p>
-            <Input
-              type="text"
-              value={revokeNote}
-              onChange={(event) => setRevokeNote(event.target.value)}
-              placeholder="Motivo opcional"
-              className="mt-2"
-            />
-            <div className="mt-2 flex gap-2">
-              <Button
-                variant="danger"
-                size="sm"
-                onClick={() => void handleRevoke()}
-                loading={busy}
-              >
-                Sim, revogar
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setConfirmRevoke(false)}
-              >
-                Cancelar
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {error && <Alert variant="error">{error}</Alert>}
-
-        {success && <Alert variant="success">{success}</Alert>}
-
-        <div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => void handleToggleHistory()}
-          >
-            {showHistory ? "Ocultar histórico" : "Ver histórico de acesso"}
-          </Button>
-
-          {showHistory && (
-            <div className="mt-3">
-              {loadingHistory ? (
-                <p className="text-sm text-foreground-muted">
-                  Carregando histórico...
-                </p>
-              ) : history && history.length > 0 ? (
-                <ul className="divide-y divide-border rounded-md border border-border">
-                  {history.map((event) => (
-                    <li key={event.id} className="p-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-sm font-medium text-foreground">
-                          {ACTION_LABELS[event.action] ?? event.action}
-                        </span>
-                        <span className="shrink-0 text-xs text-foreground-muted">
-                          {formatDate(event.createdAt)}
-                        </span>
-                      </div>
-                      <div className="mt-1 text-xs text-foreground-muted">
-                        {event.newTier?.name ?? event.previousTier?.name ?? "—"}
-                        {event.newExpiresAt && (
-                          <span> · válido até {formatDate(event.newExpiresAt)}</span>
-                        )}
-                        {event.actor?.email && (
-                          <span> · por {event.actor.email}</span>
-                        )}
-                      </div>
-                      {event.internalNote && (
-                        <div className="mt-1 text-xs italic text-foreground-muted">
-                          Nota: {event.internalNote}
-                        </div>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-foreground-muted">
-                  Nenhum evento de acesso registrado.
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    </Dialog>
-  )
-}
-
-async function fetchUserWithAccess(userId: string): Promise<User> {
-  const [user, access] = await Promise.all([
-    fetchUser(userId),
-    fetchTierAccess(userId),
-  ])
-
-  return applyAccessToUser(user, access)
 }

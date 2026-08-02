@@ -12,6 +12,7 @@ interface ConfirmDialogProps {
   busy?: boolean
   onConfirm: () => void
   onCancel: () => void
+  children?: ReactNode
 }
 
 export default function ConfirmDialog({
@@ -24,6 +25,7 @@ export default function ConfirmDialog({
   busy = false,
   onConfirm,
   onCancel,
+  children,
 }: ConfirmDialogProps) {
   return (
     <Dialog
@@ -51,9 +53,11 @@ export default function ConfirmDialog({
         </>
       }
     >
-      <p className="text-sm text-foreground-muted">
-        Confirme que deseja prosseguir com esta ação.
-      </p>
+      {children ?? (
+        <p className="text-sm text-foreground-muted">
+          Confirme que deseja prosseguir com esta ação.
+        </p>
+      )}
     </Dialog>
   )
 }

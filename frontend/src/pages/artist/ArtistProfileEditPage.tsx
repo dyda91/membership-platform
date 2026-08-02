@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import type { FormEvent } from "react"
 import { useNavigate } from "react-router-dom"
 
@@ -9,8 +9,6 @@ import {
   uploadArtistBanner,
 } from "../../services/artist-profile"
 import type { ManageArtistProfile } from "../../services/artist-profile"
-import ArtistAvatar from "../../components/artist/ArtistAvatar"
-import ArtistBanner from "../../components/artist/ArtistBanner"
 import PageContainer from "../../components/ui/PageContainer"
 import PageHeader from "../../components/ui/PageHeader"
 import Card from "../../components/ui/Card"
@@ -22,6 +20,22 @@ import Button from "../../components/ui/Button"
 import Alert from "../../components/ui/Alert"
 import ErrorState from "../../components/ui/ErrorState"
 import Skeleton from "../../components/ui/Skeleton"
+import Dialog from "../../components/ui/Dialog"
+import PublicArtistProfile from "../../components/artist/PublicArtistProfile"
+import UnsavedChangesDialog from "../../components/posts/UnsavedChangesDialog"
+import { useUnsavedChanges } from "../../hooks/useUnsavedChanges"
+import type { FeedArtist } from "../../services/feed"
+
+interface ProfileForm {
+  name: string
+  bio: string
+  presentationText: string
+  contactButtonText: string
+  whatsappValue: string
+  whatsappEnabled: boolean
+  discordUrl: string
+  discordEnabled: boolean
+}
 
 export default function ArtistProfileEditPage() {
   const navigate = useNavigate()
@@ -32,6 +46,8 @@ export default function ArtistProfileEditPage() {
   const [uploading, setUploading] = useState<"avatar" | "banner" | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [confirmDiscard, setConfirmDiscard] = useState(false)
 
   useEffect(() => {
     fetchManageArtistProfile()
@@ -40,13 +56,61 @@ export default function ArtistProfileEditPage() {
       .finally(() => setLoading(false))
   }, [])
 
+  const editableFields = useMemo(() => {
+    if (!profile) {
+      return null
+    }
+
+    return {
+      name: profile.name ?? "",
+      bio: profile.bio ?? "",
+      presentationText: profile.presentationText ?? "",
+      contactButtonText: profile.contactButtonText ?? "",
+      whatsappValue: profile.whatsappValue ?? "",
+      whatsappEnabled: profile.whatsappEnabled,
+      discordUrl: profile.discordUrl ?? "",
+      discordEnabled: profile.discordEnabled,
+    } satisfies ProfileForm
+  }, [profile])
+
+  const [form, setForm] = useState<ProfileForm | null>(null)
+
+  useEffect(() => {
+    if (editableFields && !form) {
+      setForm(editableFields)
+    }
+  }, [editableFields, form])
+
+  const dirty = useMemo(() => {
+    if (!profile || !form) {
+      return false
+    }
+
+    return (
+      form.name !== (profile.name ?? "") ||
+      form.bio !== (profile.bio ?? "") ||
+      form.presentationText !== (profile.presentationText ?? "") ||
+      form.contactButtonText !== (profile.contactButtonText ?? "") ||
+      form.whatsappValue !== (profile.whatsappValue ?? "") ||
+      form.whatsappEnabled !== profile.whatsappEnabled ||
+      form.discordUrl !== (profile.discordUrl ?? "") ||
+      form.discordEnabled !== profile.discordEnabled
+    )
+  }, [profile, form])
+
+  useUnsavedChanges(dirty)
+
+  function update<K extends keyof ProfileForm>(field: K, value: ProfileForm[K]) {
+    setForm((current) => (current ? { ...current, [field]: value } : current))
+  }
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     setSaving(true)
     setError(null)
     setSaved(false)
 
-    if (!profile) {
+    if (!profile || !form) {
       setSaving(false)
 
       return
@@ -54,26 +118,32 @@ export default function ArtistProfileEditPage() {
 
     try {
       const updated = await updateArtistProfile({
-        name: profile.name ?? undefined,
-        bio: profile.bio ?? undefined,
-        presentationText: profile.presentationText ?? undefined,
-        contactButtonText: profile.contactButtonText ?? undefined,
-        whatsappValue: profile.whatsappValue,
-        whatsappEnabled: profile.whatsappEnabled,
-        discordUrl: profile.discordUrl,
-        discordEnabled: profile.discordEnabled,
+        name: form.name || undefined,
+        bio: form.bio || undefined,
+        presentationText: form.presentationText || undefined,
+        contactButtonText: form.contactButtonText || undefined,
+        whatsappValue: form.whatsappValue || null,
+        whatsappEnabled: form.whatsappEnabled,
+        discordUrl: form.discordUrl || null,
+        discordEnabled: form.discordEnabled,
       })
       setProfile(updated)
+      setForm({
+        name: updated.name ?? "",
+        bio: updated.bio ?? "",
+        presentationText: updated.presentationText ?? "",
+        contactButtonText: updated.contactButtonText ?? "",
+        whatsappValue: updated.whatsappValue ?? "",
+        whatsappEnabled: updated.whatsappEnabled,
+        discordUrl: updated.discordUrl ?? "",
+        discordEnabled: updated.discordEnabled,
+      })
       setSaved(true)
     } catch {
       setError("Não foi possível salvar o perfil.")
     } finally {
       setSaving(false)
     }
-  }
-
-  function update(field: keyof ManageArtistProfile, value: unknown) {
-    setProfile((current) => (current ? { ...current, [field]: value } : current))
   }
 
   async function handleAvatarUpload(file: File | undefined) {
@@ -112,6 +182,16 @@ export default function ArtistProfileEditPage() {
     }
   }
 
+  function handleLeave() {
+    if (dirty) {
+      setConfirmDiscard(true)
+
+      return
+    }
+
+    navigate("/")
+  }
+
   if (loading) {
     return (
       <PageContainer width="standard">
@@ -122,7 +202,7 @@ export default function ArtistProfileEditPage() {
     )
   }
 
-  if (!profile) {
+  if (!profile || !form) {
     return (
       <PageContainer width="standard">
         <ErrorState
@@ -132,6 +212,16 @@ export default function ArtistProfileEditPage() {
         />
       </PageContainer>
     )
+  }
+
+  const previewArtist: FeedArtist = {
+    configured: true,
+    name: profile.name,
+    bio: profile.bio,
+    presentationText: profile.presentationText,
+    avatarUrl: profile.avatarUrl,
+    bannerUrl: profile.bannerUrl,
+    contactActions: profile.contactActions,
   }
 
   return (
@@ -153,104 +243,55 @@ export default function ArtistProfileEditPage() {
         </div>
       )}
 
-      <Card className="overflow-hidden">
-        <ArtistBanner url={profile.bannerUrl} />
-
-        <div className="p-6">
-          <div className="flex items-start gap-4">
-            <ArtistAvatar url={profile.avatarUrl} name={profile.name} />
-          </div>
-
-          <form onSubmit={handleSubmit} className="mt-6 space-y-5">
-            <Field id="name" label="Nome">
-              <Input
-                id="name"
-                type="text"
-                value={profile.name ?? ""}
-                onChange={(event) => update("name", event.target.value)}
-              />
-            </Field>
-
-            <Field id="bio" label="Biografia">
-              <Textarea
-                id="bio"
-                value={profile.bio ?? ""}
-                onChange={(event) => update("bio", event.target.value)}
-                rows={3}
-              />
-            </Field>
-
-            <Field id="presentationText" label="Apresentação">
-              <Textarea
-                id="presentationText"
-                value={profile.presentationText ?? ""}
-                onChange={(event) =>
-                  update("presentationText", event.target.value)
-                }
-                rows={4}
-              />
-            </Field>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Field id="whatsappValue" label="WhatsApp">
-                  <Input
-                    id="whatsappValue"
-                    type="text"
-                    placeholder="5511999998888"
-                    value={profile.whatsappValue ?? ""}
-                    onChange={(event) =>
-                      update("whatsappValue", event.target.value)
-                    }
-                  />
-                </Field>
-                <Checkbox
-                  id="whatsappEnabled"
-                  label="Habilitar WhatsApp"
-                  checked={profile.whatsappEnabled}
-                  onChange={(event) =>
-                    update("whatsappEnabled", event.target.checked)
-                  }
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <section aria-labelledby="identity-section">
+          <Card className="p-6">
+            <h2 id="identity-section" className="text-base font-semibold text-foreground">
+              Identidade pública
+            </h2>
+            <div className="mt-4 space-y-4">
+              <Field id="name" label="Nome">
+                <Input
+                  id="name"
+                  type="text"
+                  value={form.name}
+                  onChange={(event) => update("name", event.target.value)}
                 />
-              </div>
+              </Field>
+            </div>
+          </Card>
+        </section>
 
-              <div className="space-y-2">
-                <Field id="discordUrl" label="Discord">
-                  <Input
-                    id="discordUrl"
-                    type="url"
-                    placeholder="https://discord.gg/..."
-                    value={profile.discordUrl ?? ""}
-                    onChange={(event) => update("discordUrl", event.target.value)}
-                  />
-                </Field>
-                <Checkbox
-                  id="discordEnabled"
-                  label="Habilitar Discord"
-                  checked={profile.discordEnabled}
-                  onChange={(event) =>
-                    update("discordEnabled", event.target.checked)
-                  }
+        <section aria-labelledby="media-section">
+          <Card className="p-6">
+            <h2 id="media-section" className="text-base font-semibold text-foreground">
+              Avatar e banner
+            </h2>
+
+            <div className="mt-4 overflow-hidden rounded-lg border border-border">
+              {profile.bannerUrl ? (
+                <img
+                  src={profile.bannerUrl}
+                  alt="Banner atual"
+                  className="h-32 w-full object-cover"
                 />
-              </div>
+              ) : (
+                <div className="h-32 w-full bg-surface-muted" />
+              )}
             </div>
 
-            <Field id="contactButtonText" label="Texto do botão de contato">
-              <Input
-                id="contactButtonText"
-                type="text"
-                value={profile.contactButtonText ?? ""}
-                onChange={(event) =>
-                  update("contactButtonText", event.target.value)
-                }
-              />
-            </Field>
-
-            <div className="flex flex-wrap gap-4">
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <div>
                 <label className="block text-sm font-medium text-foreground">
                   Avatar
                 </label>
+                {profile.avatarUrl && (
+                  <img
+                    src={profile.avatarUrl}
+                    alt="Avatar atual"
+                    className="mt-2 h-24 w-24 rounded-full object-cover"
+                  />
+                )}
                 <input
                   type="file"
                   accept="image/*"
@@ -258,7 +299,7 @@ export default function ArtistProfileEditPage() {
                   onChange={(event) =>
                     void handleAvatarUpload(event.target.files?.[0])
                   }
-                  className="mt-1 block w-full text-sm text-foreground-subtle file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-2 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary-hover"
+                  className="mt-2 block w-full text-sm text-foreground-subtle file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-2 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary-hover"
                 />
                 {uploading === "avatar" && (
                   <p className="mt-1 text-xs text-foreground-muted">Enviando...</p>
@@ -276,26 +317,147 @@ export default function ArtistProfileEditPage() {
                   onChange={(event) =>
                     void handleBannerUpload(event.target.files?.[0])
                   }
-                  className="mt-1 block w-full text-sm text-foreground-subtle file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-2 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary-hover"
+                  className="mt-2 block w-full text-sm text-foreground-subtle file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-2 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary-hover"
                 />
                 {uploading === "banner" && (
                   <p className="mt-1 text-xs text-foreground-muted">Enviando...</p>
                 )}
               </div>
             </div>
+          </Card>
+        </section>
 
-            <div className="flex gap-2">
-              <Button type="submit" loading={saving}>
-                {saving ? "Salvando..." : "Salvar perfil"}
-              </Button>
+        <section aria-labelledby="bio-section">
+          <Card className="p-6">
+            <h2 id="bio-section" className="text-base font-semibold text-foreground">
+              Biografia e apresentação
+            </h2>
+            <div className="mt-4 space-y-4">
+              <Field id="bio" label="Biografia">
+                <Textarea
+                  id="bio"
+                  value={form.bio}
+                  onChange={(event) => update("bio", event.target.value)}
+                  rows={3}
+                />
+              </Field>
 
-              <Button variant="outline" onClick={() => navigate("/")}>
-                Ver Feed
-              </Button>
+              <Field id="presentationText" label="Apresentação">
+                <Textarea
+                  id="presentationText"
+                  value={form.presentationText}
+                  onChange={(event) =>
+                    update("presentationText", event.target.value)
+                  }
+                  rows={4}
+                />
+              </Field>
             </div>
-          </form>
+          </Card>
+        </section>
+
+        <section aria-labelledby="contacts-section">
+          <Card className="p-6">
+            <h2 id="contacts-section" className="text-base font-semibold text-foreground">
+              Contatos
+            </h2>
+
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Field
+                  id="whatsappValue"
+                  label="WhatsApp"
+                  help="Somente dígitos, com DDI. Ex.: 5511999998888."
+                >
+                  <Input
+                    id="whatsappValue"
+                    type="text"
+                    placeholder="5511999998888"
+                    value={form.whatsappValue}
+                    onChange={(event) =>
+                      update("whatsappValue", event.target.value)
+                    }
+                  />
+                </Field>
+                <Checkbox
+                  id="whatsappEnabled"
+                  label="Habilitar WhatsApp"
+                  checked={form.whatsappEnabled}
+                  onChange={(event) =>
+                    update("whatsappEnabled", event.target.checked)
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Field id="discordUrl" label="Discord">
+                  <Input
+                    id="discordUrl"
+                    type="url"
+                    placeholder="https://discord.gg/..."
+                    value={form.discordUrl}
+                    onChange={(event) => update("discordUrl", event.target.value)}
+                  />
+                </Field>
+                <Checkbox
+                  id="discordEnabled"
+                  label="Habilitar Discord"
+                  checked={form.discordEnabled}
+                  onChange={(event) =>
+                    update("discordEnabled", event.target.checked)
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <Field id="contactButtonText" label="Texto do botão de contato">
+                <Input
+                  id="contactButtonText"
+                  type="text"
+                  value={form.contactButtonText}
+                  onChange={(event) =>
+                    update("contactButtonText", event.target.value)
+                  }
+                />
+              </Field>
+            </div>
+          </Card>
+        </section>
+
+        <div className="flex flex-wrap gap-2 border-t border-border pt-5">
+          <Button type="submit" loading={saving}>
+            {saving ? "Salvando..." : "Salvar perfil"}
+          </Button>
+
+          <Button variant="outline" onClick={() => setPreviewOpen(true)}>
+            Prévia
+          </Button>
+
+          <Button variant="ghost" onClick={handleLeave}>
+            Ver Feed
+          </Button>
         </div>
-      </Card>
+      </form>
+
+      <Dialog
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        title="Prévia do perfil"
+        description="Como o perfil público aparecerá."
+        size="lg"
+      >
+        <PublicArtistProfile artist={previewArtist} />
+      </Dialog>
+
+      <UnsavedChangesDialog
+        open={confirmDiscard}
+        onDiscard={() => {
+          setConfirmDiscard(false)
+          navigate("/")
+        }}
+        onKeepEditing={() => setConfirmDiscard(false)}
+      />
     </PageContainer>
   )
 }
