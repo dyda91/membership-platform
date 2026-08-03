@@ -56,6 +56,17 @@ describe("Login", () => {
     expect(loginMock).toHaveBeenCalledWith("sub@test.com", "secret123")
   })
 
+  it("shows a visible link to password recovery", () => {
+    render(
+      <MemoryRouter>
+        <Login />
+      </MemoryRouter>,
+    )
+
+    const link = screen.getByRole("link", { name: "Esqueci minha senha" })
+    expect(link).toHaveAttribute("href", "/forgot-password")
+  })
+
   it("shows a controlled error for invalid credentials", async () => {
     loginMock.mockRejectedValue(new Error("invalid"))
 

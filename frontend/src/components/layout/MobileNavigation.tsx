@@ -8,6 +8,8 @@ import { primaryNavigation } from "./navigation"
 import TierBadge from "../auth/TierBadge"
 import IconButton from "../ui/IconButton"
 import Button from "../ui/Button"
+import UnreadBadge from "../messaging/UnreadBadge"
+import { useMessagingUnread } from "../../contexts/MessagingUnreadContext"
 import { IconClose, IconLogout } from "../ui/Icons"
 
 const FOCUSABLE_SELECTOR =
@@ -50,11 +52,12 @@ export default function MobileNavigation({
     }
   }, [open, onClose])
 
+  const items = primaryNavigation(user)
+  const { unreadCount } = useMessagingUnread()
+
   if (!open) {
     return null
   }
-
-  const items = primaryNavigation(user)
 
   function handleTab(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key !== "Tab") {
@@ -140,6 +143,9 @@ export default function MobileNavigation({
                   }
                 >
                   {item.label}
+                  {item.label === "Mensagens" && (
+                    <UnreadBadge count={unreadCount} />
+                  )}
                 </NavLink>
               </li>
             ))}

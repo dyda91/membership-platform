@@ -20,6 +20,7 @@ import { TierAccessModule } from './tier-access/tier-access.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { MailModule } from './mail/mail.module';
 import { SecurityModule } from './security/security.module';
+import { MessagingModule } from './messaging/messaging.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { SecurityModule } from './security/security.module';
     DashboardModule,
     MailModule,
     SecurityModule,
+    MessagingModule,
   ],
   controllers: [AppController],
   providers: [

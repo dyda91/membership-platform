@@ -25,12 +25,12 @@ describe("primaryNavigation", () => {
     expect(labels(items)).toEqual(["Feed"])
   })
 
-  it("gives a subscriber the feed and profile without admin links", () => {
+  it("gives a subscriber the feed, profile and messages without admin links", () => {
     const items = primaryNavigation(makeUser(["SUBSCRIBER"]))
-    expect(labels(items)).toEqual(["Feed", "Perfil"])
+    expect(labels(items)).toEqual(["Feed", "Perfil", "Mensagens"])
   })
 
-  it("gives an artist the feed, admin pages and profile", () => {
+  it("gives an artist the feed, admin pages, profile and messages", () => {
     const items = primaryNavigation(makeUser(["ARTIST"]))
     expect(labels(items)).toEqual([
       "Feed",
@@ -40,6 +40,7 @@ describe("primaryNavigation", () => {
       "Tiers",
       "Página da artista",
       "Perfil",
+      "Mensagens",
     ])
   })
 

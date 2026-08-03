@@ -35,6 +35,10 @@ vi.mock("../../contexts/AuthContext", () => ({
   useAuth: () => mockAuth,
 }))
 
+vi.mock("../../contexts/MessagingUnreadContext", () => ({
+  useMessagingUnread: () => ({ unreadCount: 0, refreshUnread: vi.fn() }),
+}))
+
 let mockAuth: {
   user: SessionUser | null
   isAuthenticated: boolean

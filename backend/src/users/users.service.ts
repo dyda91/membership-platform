@@ -528,6 +528,15 @@ export class UsersService {
         });
       }
 
+      // Migrate member messaging conversations to the new active artist so the
+      // inbox and membership remain consistent after an artist replacement.
+      if (previousArtist) {
+        await tx.conversation.updateMany({
+          where: { artistId: previousArtist.id },
+          data: { artistId: replacementId },
+        });
+      }
+
       return this.findOne(replacementId, actor);
     });
   }

@@ -106,6 +106,9 @@ describe('UsersService', () => {
         findFirst: jest.fn(),
         update: jest.fn(),
       },
+      conversation: {
+        updateMany: jest.fn(),
+      },
       $transaction: jest.fn(),
     };
     prisma.$transaction.mockImplementation(((operation: unknown) => {

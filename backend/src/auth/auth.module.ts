@@ -48,6 +48,6 @@ import { SecurityModule } from '../security/security.module';
     OptionalJwtAuthGuard,
     RolesGuard,
   ],
-  exports: [JwtAuthGuard, OptionalJwtAuthGuard, RolesGuard],
+  exports: [JwtAuthGuard, OptionalJwtAuthGuard, RolesGuard, JwtModule],
 })
 export class AuthModule {}

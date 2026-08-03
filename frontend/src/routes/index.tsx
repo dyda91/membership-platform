@@ -18,6 +18,7 @@ import NewPostPage from "../pages/posts/NewPostPage"
 import EditPostPage from "../pages/posts/EditPostPage"
 import ProfilePage from "../pages/profile/ProfilePage"
 import AccountSecurityPage from "../pages/profile/AccountSecurityPage"
+import MessagesPage from "../pages/messages/MessagesPage"
 import ArtistProfileEditPage from "../pages/artist/ArtistProfileEditPage"
 import ArtistAssignmentPage from "../pages/artist/ArtistAssignmentPage"
 import NotFound from "../pages/NotFound"
@@ -57,6 +58,10 @@ const router = createBrowserRouter([
           {
             path: "profile/security",
             element: <AccountSecurityPage />,
+          },
+          {
+            path: "messages",
+            element: <MessagesPage />,
           },
           {
             element: <RequireAdmin />,

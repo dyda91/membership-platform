@@ -48,6 +48,7 @@ export function primaryNavigation(
   }
 
   items.push({ label: "Perfil", to: "/profile" })
+  items.push({ label: "Mensagens", to: "/messages" })
 
   return items
 }

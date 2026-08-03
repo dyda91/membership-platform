@@ -6,6 +6,8 @@ import TierBadge from "../auth/TierBadge"
 import IconButton from "../ui/IconButton"
 import { buttonClasses } from "../ui/button-styles"
 import { IconMenu } from "../ui/Icons"
+import UnreadBadge from "../messaging/UnreadBadge"
+import { useMessagingUnread } from "../../contexts/MessagingUnreadContext"
 
 interface HeaderProps {
   onOpenMobileNav: () => void
@@ -14,6 +16,7 @@ interface HeaderProps {
 export default function Header({ onOpenMobileNav }: HeaderProps) {
   const { user, isAuthenticated, logout } = useAuth()
   const items = primaryNavigation(user)
+  const { unreadCount } = useMessagingUnread()
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-surface/95 backdrop-blur">
@@ -44,6 +47,9 @@ export default function Header({ onOpenMobileNav }: HeaderProps) {
               }
             >
               {item.label}
+              {item.label === "Mensagens" && (
+                <UnreadBadge count={unreadCount} />
+              )}
             </NavLink>
           ))}
         </nav>

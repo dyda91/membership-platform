@@ -73,9 +73,18 @@ export default function Login() {
               />
             </Field>
 
+            <div className="flex justify-end">
+              <Link
+                to="/forgot-password"
+                className="text-sm font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+              >
+                Esqueci minha senha
+              </Link>
+            </div>
+
             {stateMessage && <Alert variant="info">{stateMessage}</Alert>}
 
-          {error && <Alert variant="error">{error}</Alert>}
+            {error && <Alert variant="error">{error}</Alert>}
 
             <Button
               type="submit"
