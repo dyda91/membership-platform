@@ -78,6 +78,9 @@ describe('UsersService', () => {
       findFirst: jest.Mock;
       update: jest.Mock;
     };
+    conversation: {
+      updateMany: jest.Mock;
+    };
     $transaction: jest.Mock;
   };
 

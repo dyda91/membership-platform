@@ -1,32 +1,27 @@
 import { useEffect, useState } from "react"
 
-/**
- * Resolves a CSS media query in the browser. When matchMedia is unavailable
- * (for example in jsdom tests) it defaults to `true`, keeping a desktop-first
- * presentation active so only one variant is rendered.
- */
 export function useMediaQuery(query: string): boolean {
   const [matches, setMatches] = useState<boolean>(() => {
-    if (typeof window === "undefined" || !window.matchMedia) {
-      return true
+    if (typeof window === "undefined") {
+      return false
     }
 
     return window.matchMedia(query).matches
   })
 
   useEffect(() => {
-    if (typeof window === "undefined" || !window.matchMedia) {
-      return
+    const media = window.matchMedia(query)
+
+    function handleChange(event: MediaQueryListEvent) {
+      setMatches(event.matches)
     }
 
-    const mql = window.matchMedia(query)
+    setMatches(media.matches)
+    media.addEventListener("change", handleChange)
 
-    const handler = () => setMatches(mql.matches)
-
-    setMatches(mql.matches)
-    mql.addEventListener("change", handler)
-
-    return () => mql.removeEventListener("change", handler)
+    return () => {
+      media.removeEventListener("change", handleChange)
+    }
   }, [query])
 
   return matches

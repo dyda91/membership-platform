@@ -11,15 +11,27 @@ import { buttonClasses } from "../ui/button-styles"
 interface FeedPostCardProps {
   post: FeedPost
   contactActions?: FeedContactAction[]
+  artistName?: string | null
+  artistAvatarUrl?: string | null
 }
 
-function FeedPostCard({ post, contactActions = [] }: FeedPostCardProps) {
+function FeedPostCard({
+  post,
+  contactActions = [],
+  artistName,
+  artistAvatarUrl,
+}: FeedPostCardProps) {
   const { canManageContent } = useAuth()
 
   return (
     <article className="overflow-hidden rounded-xl border border-border bg-surface shadow-card">
       <div className="flex items-start justify-between gap-2">
-        <PostHeader author={post.author} createdAt={post.createdAt} />
+        <PostHeader
+          author={post.author}
+          createdAt={post.createdAt}
+          artistName={artistName}
+          artistAvatarUrl={artistAvatarUrl}
+        />
 
         {canManageContent && (
           <Link

@@ -10,6 +10,8 @@ import Button from "../../components/ui/Button"
 import Skeleton from "../../components/ui/Skeleton"
 import ErrorState from "../../components/ui/ErrorState"
 import Alert from "../../components/ui/Alert"
+import { useRightPanel } from "../../components/layout/right-panel/RightPanelContext"
+import FeedSidePanel from "../../components/layout/right-panel/FeedSidePanel"
 
 const PAGE_SIZE = 10
 
@@ -22,6 +24,17 @@ export default function FeedPage() {
   const [initialError, setInitialError] = useState<string | null>(null)
   const [loadingMore, setLoadingMore] = useState(false)
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null)
+  const { setContent, clearContent } = useRightPanel()
+
+  useEffect(() => {
+    if (!artist) {
+      return
+    }
+
+    setContent(<FeedSidePanel artist={artist} />)
+
+    return clearContent
+  }, [artist, setContent, clearContent])
 
   const loadFirst = useCallback(async () => {
     setInitialLoading(true)
@@ -74,7 +87,7 @@ export default function FeedPage() {
 
   if (initialLoading) {
     return (
-      <PageContainer width="narrow">
+      <PageContainer width="standard">
         <div className="space-y-4">
           <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-card">
             <Skeleton className="aspect-[3/1] w-full rounded-none sm:aspect-[4/1]" />
@@ -102,7 +115,7 @@ export default function FeedPage() {
   }
 
   return (
-    <PageContainer width="narrow">
+    <PageContainer width="standard">
       {artist?.configured ? (
         <PublicArtistProfile artist={artist} />
       ) : (
@@ -126,6 +139,8 @@ export default function FeedPage() {
           <FeedList
             posts={posts}
             contactActions={artist?.contactActions ?? []}
+            artistName={artist?.name ?? null}
+            artistAvatarUrl={artist?.avatarUrl ?? null}
           />
         </div>
       )}

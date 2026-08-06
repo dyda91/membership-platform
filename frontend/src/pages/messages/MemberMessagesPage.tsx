@@ -14,6 +14,8 @@ import Button from "../../components/ui/Button"
 import Avatar from "../../components/ui/Avatar"
 import MessageThread from "../../components/messaging/MessageThread"
 import MessageComposer from "../../components/messaging/MessageComposer"
+import { useRightPanel } from "../../components/layout/right-panel/RightPanelContext"
+import ConversationSidePanel from "../../components/layout/right-panel/ConversationSidePanel"
 
 export default function MemberMessagesPage() {
   const { user } = useAuth()
@@ -25,6 +27,25 @@ export default function MemberMessagesPage() {
   const [unavailable, setUnavailable] = useState(false)
 
   const thread = useConversationThread(conversation?.id ?? "")
+  const { setContent, clearContent } = useRightPanel()
+
+  useEffect(() => {
+    if (conversation) {
+      setContent(
+        <ConversationSidePanel
+          detail={{
+            memberId: conversation.memberId,
+            artist: conversation.artist,
+            member: conversation.member,
+          }}
+        />,
+      )
+    } else {
+      setContent(<ConversationSidePanel detail={null} />)
+    }
+
+    return clearContent
+  }, [conversation, setContent, clearContent])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -88,9 +109,9 @@ export default function MemberMessagesPage() {
   }
 
   return (
-    <PageContainer width="standard" className="h-[calc(100dvh-5rem)]">
-      <div className="flex h-[calc(100dvh-10rem)] flex-col">
-        <Card className="flex h-full flex-col overflow-hidden">
+    <div className="mx-auto h-[100dvh] w-full max-w-4xl overflow-hidden">
+      <div className="flex h-full flex-col px-4 pt-6 sm:px-6 pb-[calc(56px+env(safe-area-inset-bottom))] lg:pb-8">
+        <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="flex items-center gap-3 border-b border-border px-4 py-3">
             <Avatar
               url={null}
@@ -127,6 +148,6 @@ export default function MemberMessagesPage() {
           <MessageComposer thread={thread} />
         </Card>
       </div>
-    </PageContainer>
+    </div>
   )
 }

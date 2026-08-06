@@ -9,6 +9,8 @@ import {
   uploadArtistBanner,
 } from "../../services/artist-profile"
 import type { ManageArtistProfile } from "../../services/artist-profile"
+import { useRightPanel } from "../../components/layout/right-panel/RightPanelContext"
+import ArtistConfigSidePanel from "../../components/layout/right-panel/ArtistConfigSidePanel"
 import PageContainer from "../../components/ui/PageContainer"
 import PageHeader from "../../components/ui/PageHeader"
 import Card from "../../components/ui/Card"
@@ -48,6 +50,7 @@ export default function ArtistProfileEditPage() {
   const [saved, setSaved] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
+  const { setContent, clearContent } = useRightPanel()
 
   useEffect(() => {
     fetchManageArtistProfile()
@@ -55,6 +58,16 @@ export default function ArtistProfileEditPage() {
       .catch(() => setError("Não foi possível carregar o perfil da artista."))
       .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    if (!profile) {
+      return
+    }
+
+    setContent(<ArtistConfigSidePanel profile={profile} />)
+
+    return clearContent
+  }, [profile, setContent, clearContent])
 
   const editableFields = useMemo(() => {
     if (!profile) {

@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { MemoryRouter } from "react-router-dom"
 import type { ReactNode } from "react"
 import MobileNavigation from "./MobileNavigation"
 import type { SessionUser } from "../../services/auth"
@@ -26,7 +27,9 @@ vi.mock("react-router-dom", async (importOriginal) => {
       <a
         href={to}
         onClick={onClick}
-        className={typeof className === "function" ? className({ isActive: false }) : className}
+        className={
+          typeof className === "function" ? className({ isActive: false }) : className
+        }
       >
         {children}
       </a>
@@ -39,7 +42,10 @@ vi.mock("../../contexts/AuthContext", () => ({
 }))
 
 vi.mock("../../contexts/MessagingUnreadContext", () => ({
-  useMessagingUnread: () => ({ unreadCount: 0, refreshUnread: vi.fn() }),
+  useMessagingUnread: () => ({
+    unreadCount: mockUnreadCount,
+    refreshUnread: vi.fn(),
+  }),
 }))
 
 let mockAuth: {
@@ -48,6 +54,7 @@ let mockAuth: {
   isSuperAdmin: boolean
   logout: () => void
 }
+let mockUnreadCount: number
 
 const makeUser = (roles: SessionUser["roles"]): SessionUser => ({
   id: "u1",
@@ -63,15 +70,17 @@ const makeUser = (roles: SessionUser["roles"]): SessionUser => ({
   isSubscriber: roles.includes("SUBSCRIBER"),
 })
 
-function setup(open = true) {
-  const onClose = vi.fn()
-  render(<MobileNavigation open={open} onClose={onClose} />)
-
-  return { onClose }
+function setup() {
+  return render(
+    <MemoryRouter>
+      <MobileNavigation />
+    </MemoryRouter>,
+  )
 }
 
 describe("MobileNavigation", () => {
   beforeEach(() => {
+    mockUnreadCount = 0
     mockAuth = {
       user: null,
       isAuthenticated: false,
@@ -80,13 +89,30 @@ describe("MobileNavigation", () => {
     }
   })
 
-  it("renders nothing when closed", () => {
-    setup(false)
+  it("renders nothing for visitors", () => {
+    setup()
 
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    expect(screen.queryByRole("navigation")).not.toBeInTheDocument()
   })
 
-  it("renders a modal dialog with role-aware navigation", () => {
+  it("renders subscriber primary destinations without admin links", () => {
+    mockAuth = {
+      user: makeUser(["SUBSCRIBER"]),
+      isAuthenticated: true,
+      isSuperAdmin: false,
+      logout: vi.fn(),
+    }
+
+    setup()
+
+    expect(screen.getByRole("navigation", { name: "Navegação principal" })).toBeInTheDocument()
+    expect(screen.getByText("Feed")).toBeInTheDocument()
+    expect(screen.getByText("Mensagens")).toBeInTheDocument()
+    expect(screen.getByText("Perfil")).toBeInTheDocument()
+    expect(screen.queryByText("Dashboard")).not.toBeInTheDocument()
+  })
+
+  it("renders dashboard for an artist and a More action", () => {
     mockAuth = {
       user: makeUser(["ARTIST"]),
       isAuthenticated: true,
@@ -96,13 +122,12 @@ describe("MobileNavigation", () => {
 
     setup()
 
-    expect(screen.getByRole("dialog", { name: "Menu de navegação" })).toBeInTheDocument()
     expect(screen.getByText("Dashboard")).toBeInTheDocument()
-    expect(screen.getByText("Usuários")).toBeInTheDocument()
-    expect(screen.getByText("Sair")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Mais" })).toBeInTheDocument()
   })
 
-  it("keeps subscriber navigation free of administrative links", () => {
+  it("shows the unread badge on the Messages destination", () => {
+    mockUnreadCount = 5
     mockAuth = {
       user: makeUser(["SUBSCRIBER"]),
       isAuthenticated: true,
@@ -112,21 +137,10 @@ describe("MobileNavigation", () => {
 
     setup()
 
-    expect(screen.getByText("Feed")).toBeInTheDocument()
-    expect(screen.getByText("Perfil")).toBeInTheDocument()
-    expect(screen.queryByText("Dashboard")).not.toBeInTheDocument()
+    expect(screen.getByText("5")).toBeInTheDocument()
   })
 
-  it("closes via the explicit close action", async () => {
-    const user = userEvent.setup()
-    const { onClose } = setup()
-
-    await user.click(screen.getByRole("button", { name: "Fechar menu" }))
-
-    expect(onClose).toHaveBeenCalledTimes(1)
-  })
-
-  it("closes after selecting a route", async () => {
+  it("opens the More drawer with account destinations and logout", async () => {
     const user = userEvent.setup()
     mockAuth = {
       user: makeUser(["SUBSCRIBER"]),
@@ -135,39 +149,64 @@ describe("MobileNavigation", () => {
       logout: vi.fn(),
     }
 
-    const { onClose } = setup()
+    setup()
 
-    await user.click(screen.getByText("Perfil"))
+    await user.click(screen.getByRole("button", { name: "Mais" }))
 
-    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole("dialog", { name: "Mais opções" })).toBeInTheDocument()
+    expect(screen.getByText("Segurança")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Sair" })).toBeInTheDocument()
   })
 
-  it("supports Escape dismissal", async () => {
+  it("keeps the drawer free of administrative links for a subscriber", async () => {
     const user = userEvent.setup()
-    const { onClose } = setup()
+    mockAuth = {
+      user: makeUser(["SUBSCRIBER"]),
+      isAuthenticated: true,
+      isSuperAdmin: false,
+      logout: vi.fn(),
+    }
 
+    setup()
+
+    await user.click(screen.getByRole("button", { name: "Mais" }))
+
+    expect(screen.queryByText("Usuários")).not.toBeInTheDocument()
+    expect(screen.queryByText("Posts")).not.toBeInTheDocument()
+  })
+
+  it("closes the More drawer with Escape", async () => {
+    const user = userEvent.setup()
+    mockAuth = {
+      user: makeUser(["SUBSCRIBER"]),
+      isAuthenticated: true,
+      isSuperAdmin: false,
+      logout: vi.fn(),
+    }
+
+    setup()
+
+    await user.click(screen.getByRole("button", { name: "Mais" }))
     await user.keyboard("{Escape}")
 
-    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole("dialog", { name: "Mais opções" })).not.toBeInTheDocument()
   })
 
-  it("renders the trigger-visible close button with a touch target", () => {
-    setup()
-
-    const close = screen.getByRole("button", { name: "Fechar menu" })
-    expect(close).toHaveClass("h-10 w-10")
-  })
-
-  it("keeps logout accessible for authenticated users", () => {
+  it("calls logout from the drawer", async () => {
+    const user = userEvent.setup()
+    const logout = vi.fn()
     mockAuth = {
       user: makeUser(["SUBSCRIBER"]),
       isAuthenticated: true,
       isSuperAdmin: false,
-      logout: vi.fn(),
+      logout,
     }
 
     setup()
 
-    expect(screen.getByRole("button", { name: "Sair" })).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Mais" }))
+    await user.click(screen.getByRole("button", { name: "Sair" }))
+
+    expect(logout).toHaveBeenCalledTimes(1)
   })
 })

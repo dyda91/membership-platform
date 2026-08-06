@@ -165,11 +165,7 @@ export class MessagingGateway
     }
 
     if (content.length > MESSAGE_MAX_LENGTH) {
-      return this.ackFailure(
-        body,
-        'invalid_message',
-        'Mensagem muito longa.',
-      );
+      return this.ackFailure(body, 'invalid_message', 'Mensagem muito longa.');
     }
 
     try {

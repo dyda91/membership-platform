@@ -7,11 +7,15 @@ import { IconInbox } from "../ui/Icons"
 interface FeedListProps {
   posts: FeedPost[]
   contactActions?: FeedContactAction[]
+  artistName?: string | null
+  artistAvatarUrl?: string | null
 }
 
 export default function FeedList({
   posts,
   contactActions = [],
+  artistName,
+  artistAvatarUrl,
 }: FeedListProps) {
   if (posts.length === 0) {
     return (
@@ -30,6 +34,8 @@ export default function FeedList({
           key={post.id}
           post={post}
           contactActions={contactActions}
+          artistName={artistName}
+          artistAvatarUrl={artistAvatarUrl}
         />
       ))}
     </div>

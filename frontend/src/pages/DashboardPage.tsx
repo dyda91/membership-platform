@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from "react"
 import { Link } from "react-router-dom"
+import { useEffect } from "react"
 
-import { fetchDashboardSummary } from "../services/dashboard"
-import type { DashboardSummary } from "../services/dashboard"
+import { useDashboardSummary } from "../hooks/useDashboardSummary"
+import { useRightPanel } from "../components/layout/right-panel/RightPanelContext"
+import DashboardSidePanel from "../components/layout/right-panel/DashboardSidePanel"
 import PageContainer from "../components/ui/PageContainer"
 import PageHeader from "../components/ui/PageHeader"
 import Skeleton from "../components/ui/Skeleton"
@@ -51,27 +52,14 @@ const QUICK_ACTIONS: QuickAction[] = [
 ]
 
 export default function DashboardPage() {
-  const [summary, setSummary] = useState<DashboardSummary | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-
-    try {
-      const data = await fetchDashboardSummary()
-      setSummary(data)
-    } catch {
-      setError("Não foi possível carregar o resumo do painel.")
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const { summary, loading, error, refresh } = useDashboardSummary()
+  const { setContent, clearContent } = useRightPanel()
 
   useEffect(() => {
-    void load()
-  }, [load])
+    setContent(<DashboardSidePanel summary={summary} loading={loading} />)
+
+    return clearContent
+  }, [summary, loading, setContent, clearContent])
 
   return (
     <PageContainer width="wide">
@@ -117,7 +105,7 @@ export default function DashboardPage() {
           <div className="mt-4">
             <ErrorState
               title={error}
-              onRetry={() => void load()}
+              onRetry={() => void refresh()}
               retryLabel="Tentar novamente"
             />
           </div>

@@ -15,7 +15,6 @@ import type {
 import { messagingSocket } from "../../services/messagingSocket"
 import { fetchTiers } from "../../services/tiers"
 import type { Tier } from "../../services/tiers"
-import PageContainer from "../../components/ui/PageContainer"
 import PageHeader from "../../components/ui/PageHeader"
 import Card from "../../components/ui/Card"
 import Input from "../../components/ui/Input"
@@ -28,6 +27,8 @@ import Alert from "../../components/ui/Alert"
 import IconButton from "../../components/ui/IconButton"
 import Avatar from "../../components/ui/Avatar"
 import { IconChevronLeft } from "../../components/ui/Icons"
+import { useRightPanel } from "../../components/layout/right-panel/RightPanelContext"
+import ConversationSidePanel from "../../components/layout/right-panel/ConversationSidePanel"
 import ConversationListItem from "../../components/messaging/ConversationListItem"
 import MessageThread from "../../components/messaging/MessageThread"
 import MessageComposer from "../../components/messaging/MessageComposer"
@@ -53,6 +54,13 @@ export default function ArtistMessagesPage() {
   const [detail, setDetail] = useState<ConversationDetail | null>(null)
 
   const thread = useConversationThread(selectedId ?? "")
+  const { setContent, clearContent } = useRightPanel()
+
+  useEffect(() => {
+    setContent(<ConversationSidePanel detail={detail} />)
+
+    return clearContent
+  }, [detail, setContent, clearContent])
 
   useEffect(() => {
     fetchTiers()
@@ -141,7 +149,7 @@ export default function ArtistMessagesPage() {
   )
 
   const threadView = (
-    <div className="flex h-[calc(100dvh-10rem)] flex-col">
+    <div className="flex h-full flex-col">
       <ConversationPanelHeader
         detail={detail}
         summary={selectedSummary}
@@ -340,20 +348,24 @@ export default function ArtistMessagesPage() {
   )
 
   return (
-    <PageContainer width="wide" className="h-[calc(100dvh-5rem)]">
-      <PageHeader title="Mensagens" description="Caixa de entrada da artista." />
+    <div className="mx-auto h-[100dvh] w-full max-w-7xl overflow-hidden">
+      <div className="flex h-full flex-col px-4 pt-6 sm:px-6 pb-[calc(56px+env(safe-area-inset-bottom))] lg:pb-8">
+        <PageHeader title="Mensagens" description="Caixa de entrada da artista." />
 
-      {isDesktop ? (
-        <div className="grid h-[calc(100dvh-12rem)] grid-cols-1 gap-4 lg:grid-cols-[minmax(300px,380px)_1fr]">
-          <Card className="overflow-hidden">{sidebar}</Card>
-          <Card className="overflow-hidden">{threadView}</Card>
+        <div className="mt-4 min-h-0 flex-1">
+          {isDesktop ? (
+            <div className="grid h-full grid-cols-1 gap-4 lg:grid-cols-[minmax(300px,380px)_1fr]">
+              <Card className="min-h-0 overflow-hidden">{sidebar}</Card>
+              <Card className="min-h-0 overflow-hidden">{threadView}</Card>
+            </div>
+          ) : selectedId ? (
+            <Card className="h-full overflow-hidden">{threadView}</Card>
+          ) : (
+            <Card className="h-full overflow-hidden">{sidebar}</Card>
+          )}
         </div>
-      ) : selectedId ? (
-        <Card className="h-full overflow-hidden">{threadView}</Card>
-      ) : (
-        <Card className="h-full overflow-hidden">{sidebar}</Card>
-      )}
-    </PageContainer>
+      </div>
+    </div>
   )
 }
 
